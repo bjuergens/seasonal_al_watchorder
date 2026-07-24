@@ -38,16 +38,20 @@ def fetch_season(season: str, year: int, tag_cutoff: int) -> list[Media]:
     media: list[Media] = []
     page = 1
     while True:
-        body = json.dumps({
-            "query": QUERY,
-            "variables": {"season": season, "year": year, "page": page, "perPage": PER_PAGE},
-        }).encode()
+        body = json.dumps(
+            {
+                "query": QUERY,
+                "variables": {"season": season, "year": year, "page": page, "perPage": PER_PAGE},
+            }
+        ).encode()
         request = urllib.request.Request(
-            API_URL, data=body, headers={
+            API_URL,
+            data=body,
+            headers={
                 # AniList's edge rejects the default urllib user agent with 403
                 "Content-Type": "application/json",
                 "User-Agent": "anilist2playlist",
-            }
+            },
         )
         with urllib.request.urlopen(request) as response:  # raises on non-2xx
             payload = json.load(response)

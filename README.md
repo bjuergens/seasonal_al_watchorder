@@ -24,5 +24,6 @@ On first run a `config.toml` with the defaults is created in the working directo
 
 ```sh
 uv run anilist2playlist run --special-date 2026-07-18
-uv run mypy   # strict, must pass clean
+uv run mypy               # strict, must pass clean
+uv run ruff check --fix src && uv run ruff format src   # lint + autoformat
 ```

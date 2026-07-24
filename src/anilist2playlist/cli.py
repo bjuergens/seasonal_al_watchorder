@@ -36,12 +36,15 @@ def main() -> None:
         p = sub.add_parser(name, help=help_text)
         p.add_argument("--config", type=Path, help="path to TOML config file")
         p.add_argument(
-            "--regenerate-config", action="store_true",
+            "--regenerate-config",
+            action="store_true",
             help=f"overwrite the config file (--config or {DEFAULT_CONFIG_PATH}) "
-                 "with the defaults before running",
+            "with the defaults before running",
         )
         p.add_argument(
-            "--special-date", required=True, type=datetime.date.fromisoformat,
+            "--special-date",
+            required=True,
+            type=datetime.date.fromisoformat,
             help="date of the special (ISO, e.g. 2026-07-18); also selects the season",
         )
 

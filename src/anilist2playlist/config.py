@@ -41,7 +41,8 @@ def load_config(path: Path | None) -> Config:
     data = tomllib.loads(path.read_text(encoding="utf-8"))
 
     missing_props = [
-        key for key in ("raw_file", "output", "tag_cutoff", "cache_max_age_hours", "weights")
+        key
+        for key in ("raw_file", "output", "tag_cutoff", "cache_max_age_hours", "weights")
         if key not in data
     ]
     if missing_props:

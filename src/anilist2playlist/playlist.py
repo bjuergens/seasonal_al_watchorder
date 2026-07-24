@@ -6,15 +6,28 @@ from .config import Config
 from .util import Log, Media
 
 COLUMNS = [
-    "title", "romaji", "source", "siteUrl", "status", "startDate",
-    "genres", "duration", "studio", "AL Rank", "watchorder",
-    "sequel", "remake", "notes", "SPOILER tags SPOILER",
+    "title",
+    "romaji",
+    "source",
+    "siteUrl",
+    "status",
+    "startDate",
+    "genres",
+    "duration",
+    "studio",
+    "AL Rank",
+    "watchorder",
+    "sequel",
+    "remake",
+    "notes",
+    "SPOILER tags SPOILER",
 ]
 
 
 def anime_relations(m: Media, relation_type: str) -> list[Media]:
     return [
-        e["node"] for e in m["relations"]["edges"]
+        e["node"]
+        for e in m["relations"]["edges"]
         if e["relationType"] == relation_type and e["node"]["type"] == "ANIME"
     ]
 
@@ -28,8 +41,7 @@ def is_remake(m: Media) -> bool:
     if m["startDate"]["year"] is None:
         return False
     return any(
-        node["startDate"]["year"] is not None
-        and node["startDate"]["year"] < m["startDate"]["year"]
+        node["startDate"]["year"] is not None and node["startDate"]["year"] < m["startDate"]["year"]
         for node in anime_relations(m, "ALTERNATIVE")
     )
 
@@ -127,21 +139,23 @@ def write_tsv(media: list[Media], cfg: Config, special_date: datetime.date) -> N
         writer = csv.writer(f, dialect="excel-tab")
         writer.writerow(COLUMNS)
         for m in media:
-            writer.writerow([
-                m["title"]["english"] or m["title"]["romaji"],
-                m["title"]["romaji"],
-                m["source"],
-                m["siteUrl"],
-                m["status"],
-                start_date_str(m),
-                ", ".join(m["genres"]),
-                m["duration"],
-                ", ".join(s["name"] for s in m["studios"]["nodes"]),
-                m["AL Rank"],
-                m["watchorder"],
-                "yes" if is_sequel(m) else "",
-                "yes" if is_remake(m) else "",
-                notes(m, special_date),
-                ", ".join(t["name"] for t in m["tags"]),
-            ])
+            writer.writerow(
+                [
+                    m["title"]["english"] or m["title"]["romaji"],
+                    m["title"]["romaji"],
+                    m["source"],
+                    m["siteUrl"],
+                    m["status"],
+                    start_date_str(m),
+                    ", ".join(m["genres"]),
+                    m["duration"],
+                    ", ".join(s["name"] for s in m["studios"]["nodes"]),
+                    m["AL Rank"],
+                    m["watchorder"],
+                    "yes" if is_sequel(m) else "",
+                    "yes" if is_remake(m) else "",
+                    notes(m, special_date),
+                    ", ".join(t["name"] for t in m["tags"]),
+                ]
+            )
     Log.success(f"wrote {len(media)} rows to {cfg.output}")

@@ -12,7 +12,20 @@ Repository = "https://github.com/bjuergens/seasonal_al_watchorder"
 anilist2playlist = "anilist2playlist.cli:main"
 
 [dependency-groups]
-dev = ["mypy"]
+dev = ["mypy", "ruff"]
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = [
+    "E", "W",   # pycodestyle
+    "F",        # pyflakes
+    "I",        # import sorting
+    "UP",       # pyupgrade
+    "B",        # bugbear
+    "SIM",      # simplify
+]
 
 [tool.mypy]
 strict = true
