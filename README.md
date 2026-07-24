@@ -13,7 +13,7 @@ Season/year default to today's date. The watch order is the AniList popularity r
 Run straight from the repo:
 
 ```sh
-uvx --from git+https://github.com/<owner>/animespecialplaylist anilist2playlist run
+uvx --from git+https://github.com/bjuergens/seasonal_al_watchorder anilist2playlist run
 ```
 
 ## Configuration

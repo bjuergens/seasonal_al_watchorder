@@ -5,6 +5,9 @@ description = "Fetch the seasonal anime list from AniList and turn it into a wat
 requires-python = ">=3.11"
 dependencies = []
 
+[project.urls]
+Repository = "https://github.com/bjuergens/seasonal_al_watchorder"
+
 [project.scripts]
 anilist2playlist = "anilist2playlist.cli:main"
 
