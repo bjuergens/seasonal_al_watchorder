@@ -1,10 +1,11 @@
 import csv
 from pathlib import Path
+from typing import Any
 
 from .config import Config
 from .util import Log, Media
 
-CSV_COLUMNS = [
+COLUMNS = [
     "title", "romaji", "source", "siteUrl", "status", "startDate",
     "genres", "duration", "studio", "AL-popularity", "watchorder",
     "sequel", "remake", "notes",
@@ -43,17 +44,16 @@ def notes(m: Media) -> str:
     return ", ".join(parts)
 
 
-def score(m: Media, weights: dict[str, int]) -> int:
-    genres = set(m["genres"])
+def combo_weights(table: dict[str, int], present: set[str]) -> int:
+    """Sum weights of all "+"-joined keys whose genres/tags are all present."""
+    return sum(w for combo, w in table.items() if set(combo.split("+")) <= present)
+
+
+def score(m: Media, weights: dict[str, Any]) -> int:
     s: int = m["AL-popularity"]
-    if m["source"] == "ORIGINAL":
-        s += weights["original"]
-    if m["source"] == "LIGHT_NOVEL":
-        s += weights["light_novel"]
-    if {"Action", "Adventure"} <= genres or {"Action", "Fantasy"} <= genres:
-        s += weights["action_combo"]
-    if any(t["name"] == "Isekai" for t in m["tags"]):
-        s += weights["isekai"]
+    s += weights["sources"].get(m["source"], 0)
+    s += combo_weights(weights["genres"], set(m["genres"]))
+    s += combo_weights(weights["tags"], {t["name"] for t in m["tags"]})
     if is_sequel(m):
         s += weights["sequel"]
     if is_side_story(m):
@@ -71,10 +71,10 @@ def sort_media(media: list[Media], cfg: Config) -> list[Media]:
     return ordered
 
 
-def write_csv(media: list[Media], path: Path) -> None:
+def write_tsv(media: list[Media], path: Path) -> None:
     with path.open("w", newline="") as f:
-        writer = csv.writer(f)
-        writer.writerow(CSV_COLUMNS)
+        writer = csv.writer(f, dialect="excel-tab")
+        writer.writerow(COLUMNS)
         for m in media:
             start = m["startDate"]
             writer.writerow([

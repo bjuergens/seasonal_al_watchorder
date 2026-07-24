@@ -4,7 +4,7 @@
 #season = "SUMMER"
 #year = 2026
 #raw_file = "raw_SUMMER_2026.json"
-#output = "playlist_SUMMER_2026.csv"
+#output = "playlist_SUMMER_2026.tsv"
 
 # Date of the special (required for build)
 #special_date = "2026-07-18"
@@ -12,9 +12,21 @@
 # Watch order adjustments, added to the AL-popularity rank (lower = watch earlier).
 # All keys optional; values shown are the defaults.
 [weights]
-original = -10      # source is an original work
-light_novel = 5     # source is a light novel
-action_combo = 5    # genres Action+Adventure or Action+Fantasy
-isekai = 5          # Isekai in top-10 tags
 sequel = 1000
 side_story = 500
+
+# Genre and tag adjustments. A "+"-joined key matches only if the show has ALL
+# listed genres/tags; every matching key stacks. Tags match against the show's
+# top-10 tags. Overriding a table replaces its defaults entirely.
+[weights.genres]
+"Action+Adventure" = 5
+"Action+Fantasy" = 5
+
+# Per-source adjustment (AniList source values, e.g. MANGA, LIGHT_NOVEL, ORIGINAL,
+# VIDEO_GAME, VISUAL_NOVEL, WEB_NOVEL...). Overriding this table replaces the defaults.
+[weights.sources]
+ORIGINAL = -10
+LIGHT_NOVEL = 5
+
+[weights.tags]
+Isekai = 5

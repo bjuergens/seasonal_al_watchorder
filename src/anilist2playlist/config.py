@@ -20,13 +20,13 @@ SEASONS = ("WINTER", "SPRING", "SUMMER", "FALL")
 
 # Watch order adjustments, applied to the AL-popularity rank (ascending = watch first).
 # Overridable via [weights] in the config file.
-DEFAULT_WEIGHTS = {
-    "original": -10,      # source is an original work
-    "light_novel": 5,     # source is a light novel
-    "action_combo": 5,    # genres Action+Adventure or Action+Fantasy
-    "isekai": 5,          # Isekai in top-10 tags
+DEFAULT_WEIGHTS: dict[str, Any] = {
     "sequel": 1000,
     "side_story": 500,
+    # per-genre adjustment; "+"-joined keys match only if the show has all listed genres
+    "genres": {"Action+Adventure": 5, "Action+Fantasy": 5},
+    "sources": {"ORIGINAL": -10, "LIGHT_NOVEL": 5},  # per-source adjustment
+    "tags": {"Isekai": 5},  # per-tag adjustment, applied if the tag is in the top 10
 }
 
 
@@ -37,7 +37,7 @@ class Config:
     raw_file: Path
     output: Path
     special_date: datetime.date | None
-    weights: dict[str, int]
+    weights: dict[str, Any]  # DEFAULT_WEIGHTS shape: ints plus the "tags" sub-table
 
 
 def current_season() -> tuple[str, int]:
@@ -80,7 +80,7 @@ def load_config(path: Path | None, cli_overrides: dict[str, Any]) -> Config:
         season=season,
         year=int(year),
         raw_file=Path(merged.get("raw_file", f"raw_{season}_{year}.json")),
-        output=Path(merged.get("output", f"playlist_{season}_{year}.csv")),
+        output=Path(merged.get("output", f"playlist_{season}_{year}.tsv")),
         special_date=special_date,
         weights={**DEFAULT_WEIGHTS, **weight_overrides},
     )

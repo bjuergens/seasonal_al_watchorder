@@ -8,4 +8,4 @@ dist/
 # tool workdir output
 config.toml
 raw_*.json
-playlist_*.csv
+playlist_*.tsv

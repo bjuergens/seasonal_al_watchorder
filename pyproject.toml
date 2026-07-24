@@ -1,7 +1,7 @@
 [project]
 name = "anilist2playlist"
 version = "0.1.0"
-description = "Fetch the seasonal anime list from AniList and turn it into a watch-playlist CSV"
+description = "Fetch the seasonal anime list from AniList and turn it into a watch-playlist TSV"
 requires-python = ">=3.11"
 dependencies = []
 

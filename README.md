@@ -1,14 +1,14 @@
 # anilist2playlist
 
-Fetch the seasonal anime list from [AniList](https://anilist.co) and turn it into a CSV playlist.
+Fetch the seasonal anime list from [AniList](https://anilist.co) and turn it into a TSV playlist.
 
 ```sh
 anilist2playlist fetch                            # season list → raw JSON cache
-anilist2playlist build --special-date 2026-07-18  # cache → sorted CSV
+anilist2playlist build --special-date 2026-07-18  # cache → sorted TSV
 anilist2playlist run --special-date 2026-07-18    # both
 ```
 
-Season/year default to today's date. The watch order is the AniList popularity rank adjusted by configurable weights (source, genre combos, isekai tag, sequels, side stories) — see `config.example.toml`.
+Season/year default to today's date. The watch order is the AniList popularity rank adjusted by configurable weights (source, genre/tag combos, sequels, side stories) — see the generated `config.toml`.
 
 Run straight from the repo:
 
@@ -18,7 +18,7 @@ uvx --from git+https://github.com/<owner>/animespecialplaylist anilist2playlist 
 
 ## Configuration
 
-On first run a `config.toml` with the defaults is created in the working directory (next to the cache and CSV). Edit it, pass `--config PATH` for a different file, or use `--regenerate-config` to reset it. CLI flags override config values.
+On first run a `config.toml` with the defaults is created in the working directory (next to the cache and TSV). Edit it, pass `--config PATH` for a different file, or use `--regenerate-config` to reset it. CLI flags override config values.
 
 ## Development
 
