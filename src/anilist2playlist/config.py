@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from .util import Log
+from .util import Log, Score
 
 DEFAULT_CONFIG_PATH = Path("config.toml")
 
@@ -71,11 +71,19 @@ def load_config(path: Path | None) -> Config:
     if bad:
         raise ValueError(f'bad weight values for {bad} in {path} — must be an integer or "skip"')
 
+    def to_score(value: Any) -> Score:
+        return Score(skip=True) if value == "skip" else Score(value)
+
+    scored: dict[str, Any] = {key: to_score(weights[key]) for key in ("sequel", "side_story")} | {
+        table: {key: to_score(value) for key, value in weights[table].items()}
+        for table in ("sources", "genres", "tags")
+    }
+
     return Config(
         raw_file=Path(data["raw_file"]),
         output=Path(data["output"]),
         pin_top=int(data["pin_top"]),
         tag_cutoff=int(data["tag_cutoff"]),
         cache_max_age_hours=int(data["cache_max_age_hours"]),
-        weights=weights,
+        weights=scored,
     )

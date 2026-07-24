@@ -3,7 +3,7 @@ import datetime
 from typing import Any
 
 from .config import Config
-from .util import Log, Media
+from .util import Log, Media, Score
 
 COLUMNS = [
     "title",
@@ -89,9 +89,9 @@ def split_combo(combo: str) -> set[str]:
     return set(combo.split(" + "))
 
 
-def matching_weights(m: Media, weights: dict[str, Any]) -> list[tuple[str, int | str]]:
-    """All weight entries that apply to this show, as (key, value) pairs."""
-    matches: list[tuple[str, int | str]] = []
+def matching_weights(m: Media, weights: dict[str, Any]) -> list[tuple[str, Score]]:
+    """All weight entries that apply to this show, as (key, Score) pairs."""
+    matches: list[tuple[str, Score]] = []
     if m["source"] in weights["sources"]:
         matches.append((m["source"], weights["sources"][m["source"]]))
     for table, present in (("genres", set(m["genres"])), ("tags", {t["name"] for t in m["tags"]})):
@@ -105,16 +105,23 @@ def matching_weights(m: Media, weights: dict[str, Any]) -> list[tuple[str, int |
     return matches
 
 
-def score(m: Media, weights: dict[str, Any]) -> int:
-    s: int = m["AL Rank"]
-    s += sum(value for _, value in matching_weights(m, weights) if isinstance(value, int))
+def releases_after_special(m: Media, special_date: datetime.date) -> bool:
+    y, mo, d = m["startDate"]["year"], m["startDate"]["month"], m["startDate"]["day"]
+    return None not in (y, mo, d) and datetime.date(y, mo, d) > special_date
+
+
+def score(m: Media, weights: dict[str, Any], special_date: datetime.date) -> Score:
+    s = Score(m["AL Rank"])
+    for _, weight in matching_weights(m, weights):
+        s += weight
+    if releases_after_special(m, special_date):
+        s += Score(skip=True)
     return s
 
 
 def skip_reasons(m: Media, weights: dict[str, Any], special_date: datetime.date) -> str:
-    reasons = [key for key, value in matching_weights(m, weights) if value == "skip"]
-    y, mo, d = m["startDate"]["year"], m["startDate"]["month"], m["startDate"]["day"]
-    if None not in (y, mo, d) and datetime.date(y, mo, d) > special_date:
+    reasons = [key for key, weight in matching_weights(m, weights) if weight.skip]
+    if releases_after_special(m, special_date):
         reasons.append("releases after special")
     return ", ".join(reasons)
 
@@ -146,7 +153,9 @@ def sort_media(media: list[Media], cfg: Config, special_date: datetime.date) -> 
     kept = sorted((m for m in media if not m["skip"]), key=lambda m: m["AL Rank"])
     pinned = kept[: cfg.pin_top]
     rest = [m for m in media if m not in pinned]
-    ordered = pinned + sorted(rest, key=lambda m: (score(m, cfg.weights), m["AL Rank"]))
+    ordered = pinned + sorted(
+        rest, key=lambda m: (score(m, cfg.weights, special_date), m["AL Rank"])
+    )
     order = 1
     for m in ordered:
         if m["skip"]:
