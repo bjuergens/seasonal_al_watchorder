@@ -16,24 +16,19 @@ WEIGHT_KEYS = {"sequel", "side_story", "sources", "genres", "tags"}
 
 @dataclass(frozen=True)
 class Config:
-    season: str
-    year: int
     raw_file: Path
     output: Path
     weights: dict[str, Any]
+
+
+def season_of(date: datetime.date) -> tuple[str, int]:
+    return SEASONS[(date.month - 1) // 3], date.year
 
 
 def write_default_config(path: Path) -> None:
     template = importlib.resources.files("anilist2playlist").joinpath("config.default.toml")
     path.write_text(template.read_text(encoding="utf-8"), encoding="utf-8")
     Log.success(f"wrote default config to {path}")
-
-
-def current_season() -> tuple[str, int]:
-    today = datetime.date.today()
-    season = SEASONS[(today.month - 1) // 3]
-    Log.warn(f"no season/year given, derived from today: {season} {today.year}")
-    return season, today.year
 
 
 def load_config(path: Path | None) -> Config:
@@ -43,30 +38,22 @@ def load_config(path: Path | None) -> Config:
             write_default_config(path)
     data = tomllib.loads(path.read_text(encoding="utf-8"))
 
-    season = data.get("season")
-    year = data.get("year")
-    if season is None or year is None:
-        derived_season, derived_year = current_season()
-        season = season or derived_season
-        year = year or derived_year
-    season = season.upper()
-    if season not in SEASONS:
-        raise ValueError(f"invalid season {season!r}, must be one of {SEASONS}")
-
-    if "weights" not in data:
-        raise ValueError(f"missing [weights] section in {path}")
+    missing_props = [key for key in ("raw_file", "output", "weights") if key not in data]
+    if missing_props:
+        raise ValueError(
+            f"missing {missing_props} in {path} — use --regenerate-config to restore the defaults"
+        )
     weights = data["weights"]
     missing = WEIGHT_KEYS - set(weights)
     unknown = set(weights) - WEIGHT_KEYS
     if missing or unknown:
         raise ValueError(
-            f"bad [weights] in {path}: missing {sorted(missing)}, unknown {sorted(unknown)}"
+            f"bad [weights] in {path}: missing {sorted(missing)}, unknown {sorted(unknown)} "
+            "— use --regenerate-config to restore the defaults"
         )
 
     return Config(
-        season=season,
-        year=int(year),
-        raw_file=Path(data.get("raw_file", f"raw_{season}_{year}.json")),
-        output=Path(data.get("output", f"playlist_{season}_{year}.tsv")),
+        raw_file=Path(data["raw_file"]),
+        output=Path(data["output"]),
         weights=weights,
     )

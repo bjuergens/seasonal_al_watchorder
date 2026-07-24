@@ -8,7 +8,7 @@ from .util import Log, Media
 COLUMNS = [
     "title", "romaji", "source", "siteUrl", "status", "startDate",
     "genres", "duration", "studio", "AL-popularity", "watchorder",
-    "sequel", "remake", "notes",
+    "sequel", "remake", "notes", "SPOILER tags SPOILER",
 ]
 
 
@@ -74,11 +74,12 @@ def notes(m: Media, special_date: datetime.date) -> str:
 
 
 def split_combo(combo: str) -> set[str]:
-    return {part.strip() for part in combo.split("+")}
+    # separator is " + " with spaces — a bare "+" can be part of a tag name ("LGBTQ+ Themes")
+    return set(combo.split(" + "))
 
 
 def combo_weights(table: dict[str, int], present: set[str]) -> int:
-    """Sum weights of all "+"-joined keys whose genres/tags are all present."""
+    """Sum weights of all " + "-joined keys whose genres/tags are all present."""
     return sum(w for combo, w in table.items() if split_combo(combo) <= present)
 
 
@@ -140,5 +141,6 @@ def write_tsv(media: list[Media], cfg: Config, special_date: datetime.date) -> N
                 "yes" if is_sequel(m) else "",
                 "yes" if is_remake(m) else "",
                 notes(m, special_date),
+                ", ".join(t["name"] for t in m["tags"]),
             ])
     Log.success(f"wrote {len(media)} rows to {cfg.output}")

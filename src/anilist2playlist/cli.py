@@ -3,16 +3,17 @@ import datetime
 from pathlib import Path
 
 from .anilist import fetch_season
-from .config import DEFAULT_CONFIG_PATH, Config, load_config, write_default_config
+from .config import DEFAULT_CONFIG_PATH, Config, load_config, season_of, write_default_config
 from .playlist import sort_media, write_tsv
 from .storage import read_raw, write_raw
 from .util import Log
 
 
-def cmd_fetch(cfg: Config) -> None:
-    Log.info(f"fetching {cfg.season} {cfg.year} from AniList")
-    media = fetch_season(cfg.season, cfg.year)
-    write_raw(media, cfg.season, cfg.year, cfg.raw_file)
+def cmd_fetch(cfg: Config, special_date: datetime.date) -> None:
+    season, year = season_of(special_date)
+    Log.info(f"fetching {season} {year} from AniList")
+    media = fetch_season(season, year)
+    write_raw(media, season, year, cfg.raw_file)
 
 
 def cmd_build(cfg: Config, special_date: datetime.date) -> None:
@@ -39,11 +40,10 @@ def main() -> None:
             help=f"overwrite the config file (--config or {DEFAULT_CONFIG_PATH}) "
                  "with the defaults before running",
         )
-        if name in ("build", "run"):
-            p.add_argument(
-                "--special-date", required=True, type=datetime.date.fromisoformat,
-                help="date of the special (ISO, e.g. 2026-07-18)",
-            )
+        p.add_argument(
+            "--special-date", required=True, type=datetime.date.fromisoformat,
+            help="date of the special (ISO, e.g. 2026-07-18); also selects the season",
+        )
 
     args = parser.parse_args()
     if args.regenerate_config:
@@ -51,6 +51,6 @@ def main() -> None:
     cfg = load_config(args.config)
 
     if args.command in ("fetch", "run"):
-        cmd_fetch(cfg)
+        cmd_fetch(cfg, args.special_date)
     if args.command in ("build", "run"):
         cmd_build(cfg, args.special_date)
