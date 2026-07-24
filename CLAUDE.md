@@ -2,7 +2,25 @@
 
 ## Project
 
-todo
+anilist2playlist ([github](https://github.com/bjuergens/seasonal_al_watchorder)):
+fetches the seasonal anime list from AniList and builds a TSV watch playlist for
+the seasonal special. Package in `src/anilist2playlist/`, runnable via
+`uvx --from git+<repo>`.
+
+### rules
+
+- **`config.default.toml` is the single source of defaults.** No default values  in code. A required key missing from the user's config is an error whose message points at `--regenerate-config`.
+- **CLI carries no config values.** Only `--config`, `--regenerate-config`, and  the required `--special-date`
+
+### Tools
+
+    uv run mypy                    # strict
+    uv run ruff check --fix src && uv run ruff format src
+    uv run anilist2playlist run --special-date 2026-07-18 --regenerate-config
+
+### Verification
+
+raw.json, playlist.tsv into the workdir. A real fetch is cheap (2 requests).
 
 
 # General 
