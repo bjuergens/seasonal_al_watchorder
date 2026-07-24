@@ -1,0 +1,20 @@
+# anilist2playlist config. CLI flags override these values.
+
+# Season/year default to today's date; file paths derive from season/year.
+#season = "SUMMER"
+#year = 2026
+#raw_file = "raw_SUMMER_2026.json"
+#output = "playlist_SUMMER_2026.csv"
+
+# Date of the special (required for build)
+#special_date = "2026-07-18"
+
+# Watch order adjustments, added to the AL-popularity rank (lower = watch earlier).
+# All keys optional; values shown are the defaults.
+[weights]
+original = -10      # source is an original work
+light_novel = 5     # source is a light novel
+action_combo = 5    # genres Action+Adventure or Action+Fantasy
+isekai = 5          # Isekai in top-10 tags
+sequel = 1000
+side_story = 500

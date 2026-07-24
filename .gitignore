@@ -1,0 +1,11 @@
+# Python
+__pycache__/
+*.egg-info/
+dist/
+.venv/
+.mypy_cache/
+
+# tool workdir output
+config.toml
+raw_*.json
+playlist_*.csv
