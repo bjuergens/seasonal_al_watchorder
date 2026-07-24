@@ -34,7 +34,7 @@ query ($season: MediaSeason, $year: Int, $page: Int, $perPage: Int) {
 """
 
 
-def fetch_season(season: str, year: int) -> list[Media]:
+def fetch_season(season: str, year: int, tag_cutoff: int) -> list[Media]:
     media: list[Media] = []
     page = 1
     while True:
@@ -57,7 +57,7 @@ def fetch_season(season: str, year: int) -> list[Media]:
         for m in result["media"]:
             if any(t["rank"] is None for t in m["tags"]):
                 Log.info(f"{m['title']['romaji']}: tag(s) without rank, treated as rank 0")
-            m["tags"] = sorted(m["tags"], key=lambda t: t["rank"] or 0, reverse=True)[:10]
+            m["tags"] = sorted(m["tags"], key=lambda t: t["rank"] or 0, reverse=True)[:tag_cutoff]
         media.extend(result["media"])
         Log.success(f"fetched page {page} ({len(result['media'])} entries)")
         if not result["pageInfo"]["hasNextPage"]:

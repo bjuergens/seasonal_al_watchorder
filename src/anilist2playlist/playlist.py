@@ -7,7 +7,7 @@ from .util import Log, Media
 
 COLUMNS = [
     "title", "romaji", "source", "siteUrl", "status", "startDate",
-    "genres", "duration", "studio", "AL-popularity", "watchorder",
+    "genres", "duration", "studio", "AL Rank", "watchorder",
     "sequel", "remake", "notes", "SPOILER tags SPOILER",
 ]
 
@@ -84,7 +84,7 @@ def combo_weights(table: dict[str, int], present: set[str]) -> int:
 
 
 def score(m: Media, weights: dict[str, Any]) -> int:
-    s: int = m["AL-popularity"]
+    s: int = m["AL Rank"]
     s += weights["sources"].get(m["source"], 0)
     s += combo_weights(weights["genres"], set(m["genres"]))
     s += combo_weights(weights["tags"], {t["name"] for t in m["tags"]})
@@ -113,9 +113,10 @@ def warn_unused_weight_keys(media: list[Media], weights: dict[str, Any]) -> None
 def sort_media(media: list[Media], cfg: Config) -> list[Media]:
     """Order by adjusted AL-popularity rank, ascending (lowest score = watch first)."""
     warn_unused_weight_keys(media, cfg.weights)
-    for rank, m in enumerate(media, 1):  # raw data is popularity-sorted
-        m["AL-popularity"] = rank
-    ordered = sorted(media, key=lambda m: (score(m, cfg.weights), m["AL-popularity"]))
+    by_popularity = sorted(media, key=lambda m: m["popularity"] or 0, reverse=True)
+    for rank, m in enumerate(by_popularity, 1):
+        m["AL Rank"] = rank
+    ordered = sorted(media, key=lambda m: (score(m, cfg.weights), m["AL Rank"]))
     for order, m in enumerate(ordered, 1):
         m["watchorder"] = order
     return ordered
@@ -136,7 +137,7 @@ def write_tsv(media: list[Media], cfg: Config, special_date: datetime.date) -> N
                 ", ".join(m["genres"]),
                 m["duration"],
                 ", ".join(s["name"] for s in m["studios"]["nodes"]),
-                m["AL-popularity"],
+                m["AL Rank"],
                 m["watchorder"],
                 "yes" if is_sequel(m) else "",
                 "yes" if is_remake(m) else "",

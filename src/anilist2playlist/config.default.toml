@@ -2,16 +2,20 @@
 
 raw_file = "raw.json"
 output = "playlist.tsv"
+tag_cutoff = 10            # keep only each show's top N tags (by tag rank)
+cache_max_age_hours = 24   # warn when the raw cache is older than this
 
-# Watch order adjustments, added to the AL-popularity rank (lower = watch earlier).
-# All keys are required.
+# Watch order adjustments, added to the AniList popularity rank (lower = watch
+# earlier). All five weight keys are required: sequel, side_story, genres, tags,
+# sources.
 [weights]
 sequel = 1000
 side_story = 500
 
 # Genre and tag adjustments. A key joined with " + " (spaces required, since a
 # bare "+" can be part of a tag name) matches only if the show has ALL listed
-# genres/tags; every matching key stacks. Tags match against the show's top-10 tags.
+# genres/tags; every matching key stacks. Tags match against the show's top
+# tag_cutoff tags.
 [weights.genres]
 "Action + Adventure" = 5
 "Action + Fantasy" = 5

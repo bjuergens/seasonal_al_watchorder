@@ -18,6 +18,8 @@ WEIGHT_KEYS = {"sequel", "side_story", "sources", "genres", "tags"}
 class Config:
     raw_file: Path
     output: Path
+    tag_cutoff: int
+    cache_max_age_hours: int
     weights: dict[str, Any]
 
 
@@ -38,7 +40,10 @@ def load_config(path: Path | None) -> Config:
             write_default_config(path)
     data = tomllib.loads(path.read_text(encoding="utf-8"))
 
-    missing_props = [key for key in ("raw_file", "output", "weights") if key not in data]
+    missing_props = [
+        key for key in ("raw_file", "output", "tag_cutoff", "cache_max_age_hours", "weights")
+        if key not in data
+    ]
     if missing_props:
         raise ValueError(
             f"missing {missing_props} in {path} — use --regenerate-config to restore the defaults"
@@ -55,5 +60,7 @@ def load_config(path: Path | None) -> Config:
     return Config(
         raw_file=Path(data["raw_file"]),
         output=Path(data["output"]),
+        tag_cutoff=int(data["tag_cutoff"]),
+        cache_max_age_hours=int(data["cache_max_age_hours"]),
         weights=weights,
     )

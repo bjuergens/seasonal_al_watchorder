@@ -18,7 +18,7 @@ def write_raw(media: list[Media], season: str, year: int, path: Path) -> None:
     Log.success(f"wrote {len(media)} entries to {path}")
 
 
-def read_raw(path: Path) -> list[Media]:
+def read_raw(path: Path, max_age_hours: int) -> list[Media]:
     data = json.loads(path.read_text(encoding="utf-8"))  # FileNotFoundError propagates loudly
     if data.get("version") != CACHE_VERSION:
         raise ValueError(
@@ -26,7 +26,7 @@ def read_raw(path: Path) -> list[Media]:
             f"expected {CACHE_VERSION} — re-run fetch"
         )
     age = datetime.datetime.now(datetime.UTC) - datetime.datetime.fromisoformat(data["fetched_at"])
-    if age > datetime.timedelta(hours=24):
+    if age > datetime.timedelta(hours=max_age_hours):
         Log.warn(f"cache {path} is {age.days}d {age.seconds // 3600}h old — consider re-running fetch")
     media: list[Media] = data["media"]
     return media

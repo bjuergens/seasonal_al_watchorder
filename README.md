@@ -10,7 +10,7 @@ anilist2playlist run --special-date 2026-07-18     # both
 
 The season is selected by `--special-date`; weights and paths come from `config.toml`. The watch order is the AniList popularity rank adjusted by configurable weights (source, genre/tag combos, sequels, side stories).
 
-Run straight from the repo:
+Run from GitHub without cloning:
 
 ```sh
 uvx --from git+https://github.com/bjuergens/seasonal_al_watchorder anilist2playlist run --special-date 2026-07-18

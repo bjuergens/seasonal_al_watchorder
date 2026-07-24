@@ -21,8 +21,9 @@ Red flags from Ousterhout, tailored to this codebase.
 ## what to flag
 
 * was a pragmatic approach used instead of a "correct" or "official" one?
-* were pre-existing failures or issues skipped? 
+* were pre-existing failures or issues skipped? Where pre-existing issues adressed?
 
 ## after review
 
 * which flagged issues hint at bad design in surrounding code?
+* are comments long because they addess special/obscure/unexpected architectural needs? if a comment is both long and needed, that hints at bad software design.

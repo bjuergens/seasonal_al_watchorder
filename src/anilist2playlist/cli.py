@@ -12,12 +12,12 @@ from .util import Log
 def cmd_fetch(cfg: Config, special_date: datetime.date) -> None:
     season, year = season_of(special_date)
     Log.info(f"fetching {season} {year} from AniList")
-    media = fetch_season(season, year)
+    media = fetch_season(season, year, cfg.tag_cutoff)
     write_raw(media, season, year, cfg.raw_file)
 
 
 def cmd_build(cfg: Config, special_date: datetime.date) -> None:
-    media = read_raw(cfg.raw_file)
+    media = read_raw(cfg.raw_file, cfg.cache_max_age_hours)
     Log.info(f"building playlist from {len(media)} entries in {cfg.raw_file}")
     write_tsv(sort_media(media, cfg), cfg, special_date)
 
