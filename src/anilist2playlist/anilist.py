@@ -55,7 +55,9 @@ def fetch_season(season: str, year: int) -> list[Media]:
             raise RuntimeError(f"AniList GraphQL errors: {payload['errors']}")
         result = payload["data"]["Page"]
         for m in result["media"]:
-            m["tags"] = sorted(m["tags"], key=lambda t: t["rank"], reverse=True)[:10]
+            if any(t["rank"] is None for t in m["tags"]):
+                Log.info(f"{m['title']['romaji']}: tag(s) without rank, treated as rank 0")
+            m["tags"] = sorted(m["tags"], key=lambda t: t["rank"] or 0, reverse=True)[:10]
         media.extend(result["media"])
         Log.success(f"fetched page {page} ({len(result['media'])} entries)")
         if not result["pageInfo"]["hasNextPage"]:

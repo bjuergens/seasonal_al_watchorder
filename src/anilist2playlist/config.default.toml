@@ -1,4 +1,4 @@
-# anilist2playlist config. CLI flags override these values.
+# anilist2playlist config.
 
 # Season/year default to today's date; file paths derive from season/year.
 #season = "SUMMER"
@@ -6,27 +6,27 @@
 #raw_file = "raw_SUMMER_2026.json"
 #output = "playlist_SUMMER_2026.tsv"
 
-# Date of the special (required for build)
-#special_date = "2026-07-18"
-
 # Watch order adjustments, added to the AL-popularity rank (lower = watch earlier).
-# All keys optional; values shown are the defaults.
+# All keys are required.
 [weights]
 sequel = 1000
 side_story = 500
 
-# Genre and tag adjustments. A "+"-joined key matches only if the show has ALL
-# listed genres/tags; every matching key stacks. Tags match against the show's
-# top-10 tags. Overriding a table replaces its defaults entirely.
+# Genre and tag adjustments. A "+"-joined key (spaces around "+" allowed) matches
+# only if the show has ALL listed genres/tags; every matching key stacks. Tags
+# match against the show's top-10 tags.
 [weights.genres]
 "Action+Adventure" = 5
 "Action+Fantasy" = 5
 
+[weights.tags]
+Isekai = 5
+"Primarily Animal Cast" = -5
+"Boys' Love" = -5
+"School + Shounen" = 5
+
 # Per-source adjustment (AniList source values, e.g. MANGA, LIGHT_NOVEL, ORIGINAL,
-# VIDEO_GAME, VISUAL_NOVEL, WEB_NOVEL...). Overriding this table replaces the defaults.
+# VIDEO_GAME, VISUAL_NOVEL, WEB_NOVEL...).
 [weights.sources]
 ORIGINAL = -10
 LIGHT_NOVEL = 5
-
-[weights.tags]
-Isekai = 5
