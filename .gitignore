@@ -7,5 +7,5 @@ dist/
 
 # tool workdir output
 config.toml
-raw_*.json
-playlist_*.tsv
+raw.json
+playlist.tsv

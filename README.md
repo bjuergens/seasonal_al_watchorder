@@ -3,12 +3,12 @@
 Fetch the seasonal anime list from [AniList](https://anilist.co) and turn it into a TSV playlist.
 
 ```sh
-anilist2playlist fetch   # season list → raw JSON cache
+anilist2playlist fetch --special-date 2026-07-18   # season list → raw JSON cache
 anilist2playlist build --special-date 2026-07-18   # cache → sorted TSV
 anilist2playlist run --special-date 2026-07-18     # both
 ```
 
-Everything is controlled via `config.toml`. Season/year default to today's date. The watch order is the AniList popularity rank adjusted by configurable weights (source, genre/tag combos, sequels, side stories).
+The season is selected by `--special-date`; weights and paths come from `config.toml`. The watch order is the AniList popularity rank adjusted by configurable weights (source, genre/tag combos, sequels, side stories).
 
 Run straight from the repo:
 
