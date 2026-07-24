@@ -18,6 +18,7 @@ WEIGHT_KEYS = {"sequel", "side_story", "sources", "genres", "tags"}
 class Config:
     raw_file: Path
     output: Path
+    pin_top: int
     tag_cutoff: int
     cache_max_age_hours: int
     weights: dict[str, Any]
@@ -42,7 +43,7 @@ def load_config(path: Path | None) -> Config:
 
     missing_props = [
         key
-        for key in ("raw_file", "output", "tag_cutoff", "cache_max_age_hours", "weights")
+        for key in ("raw_file", "output", "pin_top", "tag_cutoff", "cache_max_age_hours", "weights")
         if key not in data
     ]
     if missing_props:
@@ -57,10 +58,23 @@ def load_config(path: Path | None) -> Config:
             f"bad [weights] in {path}: missing {sorted(missing)}, unknown {sorted(unknown)} "
             "— use --regenerate-config to restore the defaults"
         )
+    values = [(key, weights[key]) for key in ("sequel", "side_story")] + [
+        (f"{table}.{key}", value)
+        for table in ("sources", "genres", "tags")
+        for key, value in weights[table].items()
+    ]
+    bad = [
+        key
+        for key, value in values
+        if value != "skip" and not (isinstance(value, int) and not isinstance(value, bool))
+    ]
+    if bad:
+        raise ValueError(f'bad weight values for {bad} in {path} — must be an integer or "skip"')
 
     return Config(
         raw_file=Path(data["raw_file"]),
         output=Path(data["output"]),
+        pin_top=int(data["pin_top"]),
         tag_cutoff=int(data["tag_cutoff"]),
         cache_max_age_hours=int(data["cache_max_age_hours"]),
         weights=weights,

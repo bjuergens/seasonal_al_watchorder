@@ -17,8 +17,7 @@ COLUMNS = [
     "studio",
     "AL Rank",
     "watchorder",
-    "sequel",
-    "remake",
+    "skip",
     "notes",
     "SPOILER tags SPOILER",
 ]
@@ -65,8 +64,12 @@ def notes(m: Media, special_date: datetime.date) -> str:
     parts = []
     if m["format"] != "TV":
         parts.append(m["format"])
+    if is_sequel(m):
+        parts.append("sequel")
     if is_side_story(m):
         parts.append("side story")
+    if is_remake(m):
+        parts.append("remake")
     y, mo, d = m["startDate"]["year"], m["startDate"]["month"], m["startDate"]["day"]
     if y is None:
         Log.info(f"{m['title']['romaji']}: start date unknown")
@@ -74,12 +77,8 @@ def notes(m: Media, special_date: datetime.date) -> str:
     elif mo is None or d is None:
         Log.info(f"{m['title']['romaji']}: start date incomplete ({start_date_str(m)})")
         parts.append("start date incomplete")
-    else:
-        start = datetime.date(y, mo, d)
-        if start == special_date:
-            parts.append("releases on special day")
-        elif start > special_date:
-            parts.append("releases after special")
+    elif datetime.date(y, mo, d) == special_date:
+        parts.append("releases on special day")
     if any(t["rank"] is None for t in m["tags"]):
         parts.append("unranked tags")
     return ", ".join(parts)
@@ -90,21 +89,34 @@ def split_combo(combo: str) -> set[str]:
     return set(combo.split(" + "))
 
 
-def combo_weights(table: dict[str, int], present: set[str]) -> int:
-    """Sum weights of all " + "-joined keys whose genres/tags are all present."""
-    return sum(w for combo, w in table.items() if split_combo(combo) <= present)
+def matching_weights(m: Media, weights: dict[str, Any]) -> list[tuple[str, int | str]]:
+    """All weight entries that apply to this show, as (key, value) pairs."""
+    matches: list[tuple[str, int | str]] = []
+    if m["source"] in weights["sources"]:
+        matches.append((m["source"], weights["sources"][m["source"]]))
+    for table, present in (("genres", set(m["genres"])), ("tags", {t["name"] for t in m["tags"]})):
+        matches.extend(
+            (combo, w) for combo, w in weights[table].items() if split_combo(combo) <= present
+        )
+    if is_sequel(m):
+        matches.append(("sequel", weights["sequel"]))
+    if is_side_story(m):
+        matches.append(("side story", weights["side_story"]))
+    return matches
 
 
 def score(m: Media, weights: dict[str, Any]) -> int:
     s: int = m["AL Rank"]
-    s += weights["sources"].get(m["source"], 0)
-    s += combo_weights(weights["genres"], set(m["genres"]))
-    s += combo_weights(weights["tags"], {t["name"] for t in m["tags"]})
-    if is_sequel(m):
-        s += weights["sequel"]
-    if is_side_story(m):
-        s += weights["side_story"]
+    s += sum(value for _, value in matching_weights(m, weights) if isinstance(value, int))
     return s
+
+
+def skip_reasons(m: Media, weights: dict[str, Any], special_date: datetime.date) -> str:
+    reasons = [key for key, value in matching_weights(m, weights) if value == "skip"]
+    y, mo, d = m["startDate"]["year"], m["startDate"]["month"], m["startDate"]["day"]
+    if None not in (y, mo, d) and datetime.date(y, mo, d) > special_date:
+        reasons.append("releases after special")
+    return ", ".join(reasons)
 
 
 def warn_unused_weight_keys(media: list[Media], weights: dict[str, Any]) -> None:
@@ -122,15 +134,26 @@ def warn_unused_weight_keys(media: list[Media], weights: dict[str, Any]) -> None
                     Log.warn(f"weight {table} key {combo!r}: {part!r} appears nowhere in the data")
 
 
-def sort_media(media: list[Media], cfg: Config) -> list[Media]:
-    """Order by adjusted AL-popularity rank, ascending (lowest score = watch first)."""
+def sort_media(media: list[Media], cfg: Config, special_date: datetime.date) -> list[Media]:
+    """Watch order: the top pin_top non-skipped shows keep their AL Rank order, the
+    rest are sorted by adjusted rank (ascending = watch first). Skipped shows sort
+    like any other but get watchorder "skip" and don't consume a number."""
     warn_unused_weight_keys(media, cfg.weights)
     by_popularity = sorted(media, key=lambda m: m["popularity"] or 0, reverse=True)
     for rank, m in enumerate(by_popularity, 1):
         m["AL Rank"] = rank
-    ordered = sorted(media, key=lambda m: (score(m, cfg.weights), m["AL Rank"]))
-    for order, m in enumerate(ordered, 1):
-        m["watchorder"] = order
+        m["skip"] = skip_reasons(m, cfg.weights, special_date)
+    kept = sorted((m for m in media if not m["skip"]), key=lambda m: m["AL Rank"])
+    pinned = kept[: cfg.pin_top]
+    rest = [m for m in media if m not in pinned]
+    ordered = pinned + sorted(rest, key=lambda m: (score(m, cfg.weights), m["AL Rank"]))
+    order = 1
+    for m in ordered:
+        if m["skip"]:
+            m["watchorder"] = "skip"
+        else:
+            m["watchorder"] = order
+            order += 1
     return ordered
 
 
@@ -152,8 +175,7 @@ def write_tsv(media: list[Media], cfg: Config, special_date: datetime.date) -> N
                     ", ".join(s["name"] for s in m["studios"]["nodes"]),
                     m["AL Rank"],
                     m["watchorder"],
-                    "yes" if is_sequel(m) else "",
-                    "yes" if is_remake(m) else "",
+                    m["skip"],
                     notes(m, special_date),
                     ", ".join(t["name"] for t in m["tags"]),
                 ]

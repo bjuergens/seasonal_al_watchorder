@@ -2,24 +2,23 @@
 
 raw_file = "raw.json"
 output = "playlist.tsv"
+pin_top = 5                # the top N non-skipped shows keep their AL Rank order
 tag_cutoff = 10            # keep only each show's top N tags (by tag rank)
 cache_max_age_hours = 24   # warn when the raw cache is older than this
 
 # Watch order adjustments, added to the AniList popularity rank (lower = watch
-# earlier). All five weight keys are required: sequel, side_story, genres, tags,
-# sources.
+# earlier). Addidative Adjustment-Number or  "skip"
 [weights]
-sequel = 1000
-side_story = 500
+sequel = "skip"
+side_story = "skip"
 
-# Genre and tag adjustments. A key joined with " + " (spaces required, since a
-# bare "+" can be part of a tag name) matches only if the show has ALL listed
-# genres/tags; every matching key stacks. Tags match against the show's top
-# tag_cutoff tags.
+# Note: you can combine keys with " + " (spaces required, since a
+# bare "+" can be part of a tag name).
 [weights.genres]
 "Action + Adventure" = 5
 "Action + Fantasy" = 5
 
+# tags only match the first tag_cutoff
 [weights.tags]
 Isekai = 5
 "Primarily Animal Cast" = -5
@@ -27,8 +26,6 @@ Isekai = 5
 "School + Shounen" = 5
 "LGBTQ+ Themes + War" = -5
 
-# Per-source adjustment (AniList source values, e.g. MANGA, LIGHT_NOVEL, ORIGINAL,
-# VIDEO_GAME, VISUAL_NOVEL, WEB_NOVEL...).
 [weights.sources]
 ORIGINAL = -10
 LIGHT_NOVEL = 5
