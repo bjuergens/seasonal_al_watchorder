@@ -10,14 +10,20 @@ Media = dict[str, Any]
 @functools.total_ordering
 @dataclass(frozen=True)
 class Score:
-    """Additive watch-order adjustment. Adding Scores sums the values and ORs the
-    skip flags, so skip can only ever go from False to True."""
+    """Additive watch-order adjustment. Adding Scores sums the values and collects
+    the skip reasons; a non-empty reasons tuple means the show is skipped, so skip
+    can only ever go from False to True. Ordering and equality compare the value
+    alone — skip never affects the watch order itself."""
 
     value: int = 0
-    skip: bool = False
+    reasons: tuple[str, ...] = ()
+
+    @property
+    def skip(self) -> bool:
+        return bool(self.reasons)
 
     def __add__(self, other: "Score") -> "Score":
-        return Score(self.value + other.value, self.skip or other.skip)
+        return Score(self.value + other.value, self.reasons + other.reasons)
 
     def __iadd__(self, other: "Score") -> "Score":
         return self + other
@@ -25,10 +31,10 @@ class Score:
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, Score):
             return NotImplemented
-        return (self.value, self.skip) == (other.value, other.skip)
+        return self.value == other.value
 
     def __lt__(self, other: "Score") -> bool:
-        return (self.value, self.skip) < (other.value, other.skip)
+        return self.value < other.value
 
 
 class Log:

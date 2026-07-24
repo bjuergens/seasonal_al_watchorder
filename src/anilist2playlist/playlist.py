@@ -89,19 +89,17 @@ def split_combo(combo: str) -> set[str]:
     return set(combo.split(" + "))
 
 
-def matching_weights(m: Media, weights: dict[str, Any]) -> list[tuple[str, Score]]:
-    """All weight entries that apply to this show, as (key, Score) pairs."""
-    matches: list[tuple[str, Score]] = []
+def matching_weights(m: Media, weights: dict[str, Any]) -> list[Score]:
+    """All weight entries that apply to this show."""
+    matches: list[Score] = []
     if m["source"] in weights["sources"]:
-        matches.append((m["source"], weights["sources"][m["source"]]))
+        matches.append(weights["sources"][m["source"]])
     for table, present in (("genres", set(m["genres"])), ("tags", {t["name"] for t in m["tags"]})):
-        matches.extend(
-            (combo, w) for combo, w in weights[table].items() if split_combo(combo) <= present
-        )
+        matches.extend(w for combo, w in weights[table].items() if split_combo(combo) <= present)
     if is_sequel(m):
-        matches.append(("sequel", weights["sequel"]))
+        matches.append(weights["sequel"])
     if is_side_story(m):
-        matches.append(("side story", weights["side_story"]))
+        matches.append(weights["side_story"])
     return matches
 
 
@@ -111,19 +109,10 @@ def releases_after_special(m: Media, special_date: datetime.date) -> bool:
 
 
 def score(m: Media, weights: dict[str, Any], special_date: datetime.date) -> Score:
-    s = Score(m["AL Rank"])
-    for _, weight in matching_weights(m, weights):
-        s += weight
+    s = sum(matching_weights(m, weights), Score(m["AL Rank"]))
     if releases_after_special(m, special_date):
-        s += Score(skip=True)
+        s += Score(reasons=("releases after special",))
     return s
-
-
-def skip_reasons(m: Media, weights: dict[str, Any], special_date: datetime.date) -> str:
-    reasons = [key for key, weight in matching_weights(m, weights) if weight.skip]
-    if releases_after_special(m, special_date):
-        reasons.append("releases after special")
-    return ", ".join(reasons)
 
 
 def warn_unused_weight_keys(media: list[Media], weights: dict[str, Any]) -> None:
@@ -149,16 +138,15 @@ def sort_media(media: list[Media], cfg: Config, special_date: datetime.date) -> 
     by_popularity = sorted(media, key=lambda m: m["popularity"] or 0, reverse=True)
     for rank, m in enumerate(by_popularity, 1):
         m["AL Rank"] = rank
-        m["skip"] = skip_reasons(m, cfg.weights, special_date)
-    kept = sorted((m for m in media if not m["skip"]), key=lambda m: m["AL Rank"])
+        m["score"] = score(m, cfg.weights, special_date)
+        m["skip"] = ", ".join(m["score"].reasons)
+    kept = sorted((m for m in media if not m["score"].skip), key=lambda m: m["AL Rank"])
     pinned = kept[: cfg.pin_top]
     rest = [m for m in media if m not in pinned]
-    ordered = pinned + sorted(
-        rest, key=lambda m: (score(m, cfg.weights, special_date), m["AL Rank"])
-    )
+    ordered = pinned + sorted(rest, key=lambda m: (m["score"], m["AL Rank"]))
     order = 1
     for m in ordered:
-        if m["skip"]:
+        if m["score"].skip:
             m["watchorder"] = "skip"
         else:
             m["watchorder"] = order

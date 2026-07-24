@@ -71,11 +71,15 @@ def load_config(path: Path | None) -> Config:
     if bad:
         raise ValueError(f'bad weight values for {bad} in {path} — must be an integer or "skip"')
 
-    def to_score(value: Any) -> Score:
-        return Score(skip=True) if value == "skip" else Score(value)
+    def to_score(key: str, value: Any) -> Score:
+        """A "skip" weight becomes a Score carrying its config key as the skip reason."""
+        return Score(reasons=(key,)) if value == "skip" else Score(value)
 
-    scored: dict[str, Any] = {key: to_score(weights[key]) for key in ("sequel", "side_story")} | {
-        table: {key: to_score(value) for key, value in weights[table].items()}
+    scored: dict[str, Any] = {
+        "sequel": to_score("sequel", weights["sequel"]),
+        "side_story": to_score("side story", weights["side_story"]),
+    } | {
+        table: {key: to_score(key, value) for key, value in weights[table].items()}
         for table in ("sources", "genres", "tags")
     }
 
