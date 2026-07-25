@@ -43,13 +43,9 @@ class Rule:
         return cls(key, frozenset({key}), parse_weight_value(toml_key, value, path))
 
     @classmethod
-    def source(cls, source: str, value: Any, path: Path) -> "Rule":
-        needs = frozenset({f"source:{source}"})
-        return cls(source, needs, parse_weight_value(f"sources.{source}", value, path))
-
-    @classmethod
-    def combo(cls, kind: str, combo: str, value: Any, path: Path) -> "Rule":
-        """A combo weight; kind is the feature prefix, "genre" or "tag"."""
+    def of(cls, kind: str, combo: str, value: Any, path: Path) -> "Rule":
+        """A weight from one of the keyed tables; kind is the feature prefix:
+        "source", "genre" or "tag". Combos via " + " work for any kind."""
         needs = frozenset(f"{kind}:{part}" for part in split_combo(combo))
         return cls(combo, needs, parse_weight_value(f"{kind}s.{combo}", value, path))
 
@@ -81,11 +77,11 @@ def parse_weights(weights: dict[str, Any], path: Path) -> list[Rule]:
         Rule.flag("side_story", weights["side_story"], path),
     ]
     for source, value in weights["sources"].items():
-        rules.append(Rule.source(source, value, path))
+        rules.append(Rule.of("source", source, value, path))
     for combo, value in weights["genres"].items():
-        rules.append(Rule.combo("genre", combo, value, path))
+        rules.append(Rule.of("genre", combo, value, path))
     for combo, value in weights["tags"].items():
-        rules.append(Rule.combo("tag", combo, value, path))
+        rules.append(Rule.of("tag", combo, value, path))
     return rules
 
 
