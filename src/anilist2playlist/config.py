@@ -14,6 +14,20 @@ SEASONS = ("WINTER", "SPRING", "SUMMER", "FALL")
 WEIGHT_KEYS = {"sequel", "side_story", "sources", "genres", "tags"}
 
 
+def split_combo(combo: str) -> set[str]:
+    # separator is " + " with spaces — a bare "+" can be part of a tag name ("LGBTQ+ Themes")
+    return set(combo.split(" + "))
+
+
+def parse_weight_value(qualname: str, value: Any, path: Path) -> int | None:
+    if value == "skip":
+        return None
+    # bool is an int subclass, so e.g. `sequel = true` would otherwise score as 1
+    if isinstance(value, int) and not isinstance(value, bool):
+        return value
+    raise ValueError(f'bad weight value for {qualname} in {path} — must be an integer or "skip"')
+
+
 @dataclass(frozen=True)
 class Rule:
     """One [weights] entry, normalized: matches a show when all needed features are present."""
@@ -21,6 +35,23 @@ class Rule:
     key: str  # display / skip-reason name from the config
     needs: frozenset[str]  # feature ids, e.g. {"genre:Isekai", "genre:Fantasy"}
     value: int | None  # None means skip
+
+    @classmethod
+    def flag(cls, toml_key: str, value: Any, path: Path) -> "Rule":
+        """A fixed-flag weight: sequel or side_story."""
+        key = toml_key.replace("_", " ")
+        return cls(key, frozenset({key}), parse_weight_value(toml_key, value, path))
+
+    @classmethod
+    def source(cls, source: str, value: Any, path: Path) -> "Rule":
+        needs = frozenset({f"source:{source}"})
+        return cls(source, needs, parse_weight_value(f"sources.{source}", value, path))
+
+    @classmethod
+    def combo(cls, kind: str, combo: str, value: Any, path: Path) -> "Rule":
+        """A combo weight; kind is the feature prefix, "genre" or "tag"."""
+        needs = frozenset(f"{kind}:{part}" for part in split_combo(combo))
+        return cls(combo, needs, parse_weight_value(f"{kind}s.{combo}", value, path))
 
 
 @dataclass(frozen=True)
@@ -37,20 +68,6 @@ def season_of(date: datetime.date) -> tuple[str, int]:
     return SEASONS[(date.month - 1) // 3], date.year
 
 
-def split_combo(combo: str) -> set[str]:
-    # separator is " + " with spaces — a bare "+" can be part of a tag name ("LGBTQ+ Themes")
-    return set(combo.split(" + "))
-
-
-def parse_weight_value(qualname: str, value: Any, path: Path) -> int | None:
-    if value == "skip":
-        return None
-    # bool is an int subclass, so e.g. `sequel = true` would otherwise score as 1
-    if isinstance(value, int) and not isinstance(value, bool):
-        return value
-    raise ValueError(f'bad weight value for {qualname} in {path} — must be an integer or "skip"')
-
-
 def parse_weights(weights: dict[str, Any], path: Path) -> list[Rule]:
     missing = WEIGHT_KEYS - set(weights)
     unknown = set(weights) - WEIGHT_KEYS
@@ -60,26 +77,15 @@ def parse_weights(weights: dict[str, Any], path: Path) -> list[Rule]:
             "— use --regenerate-config to restore the defaults"
         )
     rules = [
-        Rule(
-            "sequel",
-            frozenset({"sequel"}),
-            parse_weight_value("sequel", weights["sequel"], path),
-        ),
-        Rule(
-            "side story",
-            frozenset({"side story"}),
-            parse_weight_value("side_story", weights["side_story"], path),
-        ),
+        Rule.flag("sequel", weights["sequel"], path),
+        Rule.flag("side_story", weights["side_story"], path),
     ]
     for source, value in weights["sources"].items():
-        needs = frozenset({f"source:{source}"})
-        rules.append(Rule(source, needs, parse_weight_value(f"sources.{source}", value, path)))
+        rules.append(Rule.source(source, value, path))
     for combo, value in weights["genres"].items():
-        needs = frozenset(f"genre:{part}" for part in split_combo(combo))
-        rules.append(Rule(combo, needs, parse_weight_value(f"genres.{combo}", value, path)))
+        rules.append(Rule.combo("genre", combo, value, path))
     for combo, value in weights["tags"].items():
-        needs = frozenset(f"tag:{part}" for part in split_combo(combo))
-        rules.append(Rule(combo, needs, parse_weight_value(f"tags.{combo}", value, path)))
+        rules.append(Rule.combo("tag", combo, value, path))
     return rules
 
 

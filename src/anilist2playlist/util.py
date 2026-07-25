@@ -11,6 +11,8 @@ def parse_al_date_round_up(fuzzy: dict[str, int | None]) -> datetime.date:
     """AniList FuzzyDate -> date, rounding missing parts up: unknown year becomes
     2999, unknown month the last month, unknown day the last day of the month."""
     y, mo, d = fuzzy["year"], fuzzy["month"], fuzzy["day"]
+    if y is not None and mo is not None and d is not None:
+        return datetime.date(y, mo, d)
     if y is None:
         y = 2999
     if mo is None:
@@ -18,8 +20,7 @@ def parse_al_date_round_up(fuzzy: dict[str, int | None]) -> datetime.date:
     if d is None:
         d = calendar.monthrange(y, mo)[1]
     result = datetime.date(y, mo, d)
-    if None in fuzzy.values():
-        Log.warn(f"incomplete AniList date {fuzzy} rounded up to {result}")
+    Log.warn(f"incomplete AniList date {fuzzy} rounded up to {result}")
     return result
 
 
