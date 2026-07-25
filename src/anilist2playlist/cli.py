@@ -4,7 +4,8 @@ from pathlib import Path
 
 from .anilist import fetch_season
 from .config import DEFAULT_CONFIG_PATH, Config, load_config, season_of, write_default_config
-from .playlist import sort_media, write_tsv
+from .playlist import sort_shows, write_tsv
+from .show import Show
 from .storage import read_raw, write_raw
 from .util import Log
 
@@ -19,7 +20,8 @@ def cmd_fetch(cfg: Config, special_date: datetime.date) -> None:
 def cmd_build(cfg: Config, special_date: datetime.date) -> None:
     media = read_raw(cfg.raw_file, cfg.cache_max_age_hours)
     Log.info(f"building playlist from {len(media)} entries in {cfg.raw_file}")
-    write_tsv(sort_media(media, cfg, special_date), cfg, special_date)
+    shows = [Show(m) for m in media]
+    write_tsv(sort_shows(shows, cfg, special_date), cfg, special_date)
 
 
 def main() -> None:
