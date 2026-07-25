@@ -30,7 +30,7 @@ class Config:
     pin_top: int
     tag_cutoff: int
     cache_max_age_hours: int
-    weights: list[Rule]
+    rules: list[Rule]
 
 
 def season_of(date: datetime.date) -> tuple[str, int]:
@@ -104,5 +104,5 @@ def load_config(path: Path | None) -> Config:
         pin_top=int(data["pin_top"]),
         tag_cutoff=int(data["tag_cutoff"]),
         cache_max_age_hours=int(data["cache_max_age_hours"]),
-        weights=parse_weights(data["weights"], path),
+        rules=parse_weights(data["weights"], path),
     )

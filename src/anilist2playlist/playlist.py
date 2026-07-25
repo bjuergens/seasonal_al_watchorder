@@ -62,11 +62,11 @@ def sort_media(media: list[Media], cfg: Config, special_date: datetime.date) -> 
     """Watch order: the top pin_top non-skipped shows keep their AL Rank order, the
     rest are sorted by adjusted rank (ascending = watch first). Skipped shows sort
     like any other but get watchorder "skip" and don't consume a number."""
-    warn_unused_weight_keys(media, cfg.weights)
+    warn_unused_weight_keys(media, cfg.rules)
     by_popularity = sorted(media, key=lambda m: m["popularity"] or 0, reverse=True)
     for rank, m in enumerate(by_popularity, 1):
         m["AL Rank"] = rank
-    scorer = Scorer(cfg.weights, special_date)
+    scorer = Scorer(cfg.rules, special_date)
     scored = [(m, scorer.score(m)) for m in media]
     for m, s in scored:
         m["skip"] = ", ".join(s.skip_reasons)
