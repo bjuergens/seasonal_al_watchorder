@@ -1,12 +1,8 @@
 import datetime
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
 
 from .config import Rule
 from .util import Log
-
-if TYPE_CHECKING:
-    from .show import Show
 
 
 @dataclass(frozen=True)
@@ -15,32 +11,26 @@ class Score:
     skip_reasons: list[str]
 
     @classmethod
-    def of(cls, show: "Show", rules: list[Rule], special_date: datetime.date) -> "Score":
-        fs = features(show)
-        matches = [(rule.key, rule.value) for rule in rules if rule.needs.issubset(fs)]
-        reasons = [key for key, value in matches if value is None]
-        if show.latest_start_date > special_date:
-            reasons.append("releases after special")
-        return cls(show.al_rank + sum(v for _, v in matches if v is not None), reasons)
+    def of(
+        cls,
+        al_rank: int,
+        latest_start_date: datetime.date,
+        features: set[str],
+        rules: list[Rule],
+        special_date: datetime.date,
+    ) -> "Score":
+        rule_matches = [(rule.key, rule.value) for rule in rules if rule.needs.issubset(features)]
+        skip_reasons = [key for key, value in rule_matches if value is None]
+        if latest_start_date > special_date:
+            skip_reasons.append("releases after special")
+        return cls(al_rank + sum(v for _, v in rule_matches if v is not None), skip_reasons)
 
 
-def features(show: "Show") -> set[str]:
-    """The feature ids of a show that weight rules match against."""
-    fs = {f"genre:{g}" for g in show.genres}
-    fs.update(f"tag:{t}" for t in show.tag_names)
-    fs.add(f"source:{show.source}")
-    if show.is_sequel:
-        fs.add("sequel")
-    if show.is_side_story:
-        fs.add("side story")
-    return fs
-
-
-def warn_unused_weight_keys(shows: list["Show"], rules: list[Rule]) -> None:
+def warn_unused_weight_keys(feature_sets: list[set[str]], rules: list[Rule]) -> None:
     """Warn about configured features that appear nowhere in the data (typos)."""
     known_features = {"sequel", "side story"}  # fixed config flags, can't be typos
-    for show in shows:
-        known_features.update(features(show))
+    for features in feature_sets:
+        known_features.update(features)
     for rule in rules:
         for feature in sorted(rule.needs - known_features):
             Log.warn(f"weight {rule.key!r}: {feature!r} appears nowhere in the data")

@@ -10,7 +10,7 @@ def sort_shows(shows: list[Show], cfg: Config) -> list[Show]:
     """Watch order: the top pin_top non-skipped shows keep their AL Rank order, the
     rest are sorted by adjusted rank (ascending = watch first). Skipped shows sort
     like any other but don't consume a watch order number (see write_tsv)."""
-    warn_unused_weight_keys(shows, cfg.rules)
+    warn_unused_weight_keys([s.features for s in shows], cfg.rules)
     kept = [s for s in shows if not s.skip_reasons]
     pinned = kept[: cfg.pin_top]
     rest = [s for s in shows if s not in pinned]
