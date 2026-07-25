@@ -19,16 +19,16 @@ class Score:
         fs = features(show)
         matches = [(rule.key, rule.value) for rule in rules if rule.needs <= fs]
         reasons = [key for key, value in matches if value is None]
-        if parse_al_date_round_up(show.start_date) > special_date:
+        if parse_al_date_round_up(show.raw["startDate"]) > special_date:
             reasons.append("releases after special")
         return cls(show.al_rank + sum(v for _, v in matches if v is not None), reasons)
 
 
 def features(show: Show) -> set[str]:
     """The feature ids of a show that weight rules match against."""
-    fs = {f"genre:{g}" for g in show.genres}
+    fs = {f"genre:{g}" for g in show.raw["genres"]}
     fs |= {f"tag:{t}" for t in show.tag_names}
-    fs.add(f"source:{show.source}")
+    fs.add(f"source:{show.raw['source']}")
     if show.is_sequel:
         fs.add("sequel")
     if show.is_side_story:

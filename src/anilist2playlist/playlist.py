@@ -25,7 +25,8 @@ COLUMNS = [
 
 
 def start_date_str(show: Show) -> str:
-    y, mo, d = show.start_date["year"], show.start_date["month"], show.start_date["day"]
+    date = show.raw["startDate"]
+    y, mo, d = date["year"], date["month"], date["day"]
     if y is None:
         return ""
     if mo is None:
@@ -36,21 +37,22 @@ def start_date_str(show: Show) -> str:
 
 
 def notes(show: Show, special_date: datetime.date) -> str:
-    parts = []
-    if show.format != "TV":
-        parts.append(show.format)
+    parts: list[str] = []
+    if show.raw["format"] != "TV":
+        parts.append(show.raw["format"])
     if show.is_sequel:
         parts.append("sequel")
     if show.is_side_story:
         parts.append("side story")
     if show.is_remake:
         parts.append("remake")
-    y, mo, d = show.start_date["year"], show.start_date["month"], show.start_date["day"]
+    date = show.raw["startDate"]
+    y, mo, d = date["year"], date["month"], date["day"]
     if y is None:
-        Log.info(f"{show.romaji}: start date unknown")
+        Log.info(f"{show.raw['title']['romaji']}: start date unknown")
         parts.append("start date unknown")
     elif mo is None or d is None:
-        Log.info(f"{show.romaji}: start date incomplete ({start_date_str(show)})")
+        Log.info(f"{show.raw['title']['romaji']}: start date incomplete ({start_date_str(show)})")
         parts.append("start date incomplete")
     elif datetime.date(y, mo, d) == special_date:
         parts.append("releases on special day")
@@ -90,13 +92,13 @@ def write_tsv(shows: list[Show], cfg: Config, special_date: datetime.date) -> No
             writer.writerow(
                 [
                     show.title,
-                    show.romaji,
-                    show.source,
-                    show.site_url,
-                    show.status,
+                    show.raw["title"]["romaji"],
+                    show.raw["source"],
+                    show.raw["siteUrl"],
+                    show.raw["status"],
                     start_date_str(show),
-                    ", ".join(show.genres),
-                    show.duration,
+                    ", ".join(show.raw["genres"]),
+                    show.raw["duration"],
                     ", ".join(show.studios),
                     show.al_rank,
                     "skip" if show.watchorder is None else show.watchorder,
