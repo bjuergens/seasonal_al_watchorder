@@ -37,13 +37,13 @@ class Rule:
     value: int | None  # None means skip
 
     @classmethod
-    def flag(cls, toml_key: str, value: Any, path: Path) -> "Rule":
+    def from_flag(cls, toml_key: str, value: Any, path: Path) -> "Rule":
         """A fixed-flag weight: sequel or side_story."""
         key = toml_key.replace("_", " ")
         return cls(key, frozenset({key}), parse_weight_value(toml_key, value, path))
 
     @classmethod
-    def of(cls, kind: str, combo: str, value: Any, path: Path) -> "Rule":
+    def from_table(cls, kind: str, combo: str, value: Any, path: Path) -> "Rule":
         """A weight from one of the keyed tables; kind is the feature prefix:
         "source", "genre" or "tag". Combos via " + " work for any kind."""
         needs = frozenset(f"{kind}:{part}" for part in split_combo(combo))
@@ -73,15 +73,15 @@ def parse_weights(weights: dict[str, Any], path: Path) -> list[Rule]:
             "— use --regenerate-config to restore the defaults"
         )
     rules = [
-        Rule.flag("sequel", weights["sequel"], path),
-        Rule.flag("side_story", weights["side_story"], path),
+        Rule.from_flag("sequel", weights["sequel"], path),
+        Rule.from_flag("side_story", weights["side_story"], path),
     ]
     for source, value in weights["sources"].items():
-        rules.append(Rule.of("source", source, value, path))
+        rules.append(Rule.from_table("source", source, value, path))
     for combo, value in weights["genres"].items():
-        rules.append(Rule.of("genre", combo, value, path))
+        rules.append(Rule.from_table("genre", combo, value, path))
     for combo, value in weights["tags"].items():
-        rules.append(Rule.of("tag", combo, value, path))
+        rules.append(Rule.from_table("tag", combo, value, path))
     return rules
 
 

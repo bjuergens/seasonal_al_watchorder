@@ -3,7 +3,7 @@ from dataclasses import dataclass
 
 from .config import Rule
 from .show import Show
-from .util import Log, parse_al_date_round_up
+from .util import Log
 
 
 @dataclass(frozen=True)
@@ -19,7 +19,7 @@ class Score:
         fs = features(show)
         matches = [(rule.key, rule.value) for rule in rules if rule.needs <= fs]
         reasons = [key for key, value in matches if value is None]
-        if parse_al_date_round_up(show.raw["startDate"]) > special_date:
+        if show.latest_start_date > special_date:
             reasons.append("releases after special")
         return cls(show.al_rank + sum(v for _, v in matches if v is not None), reasons)
 

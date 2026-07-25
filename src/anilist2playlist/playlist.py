@@ -53,7 +53,7 @@ def notes(show: Show, special_date: datetime.date) -> str:
         parts.append("start date unknown")
     elif mo is None or d is None:
         Log.info(f"{show.raw['title']['romaji']}: start date incomplete ({start_date_str(show)})")
-        parts.append("start date incomplete")
+        parts.append(f"start date incomplete ({start_date_str(show)})")
     elif datetime.date(y, mo, d) == special_date:
         parts.append("releases on special day")
     if show.has_unranked_tags:
@@ -96,7 +96,7 @@ def write_tsv(shows: list[Show], cfg: Config, special_date: datetime.date) -> No
                     show.raw["source"],
                     show.raw["siteUrl"],
                     show.raw["status"],
-                    start_date_str(show),
+                    show.latest_start_date.isoformat(),
                     ", ".join(show.raw["genres"]),
                     show.raw["duration"],
                     ", ".join(show.studios),

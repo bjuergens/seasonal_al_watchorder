@@ -1,4 +1,7 @@
-from .util import Media
+import datetime
+from functools import cached_property
+
+from .util import Media, parse_al_date_round_up
 
 
 class Show:
@@ -20,6 +23,12 @@ class Show:
     def popularity(self) -> int:
         popularity: int = self.raw["popularity"] or 0
         return popularity
+
+    @cached_property
+    def latest_start_date(self) -> datetime.date:
+        """Start date with missing parts rounded up; cached so the parser's
+        incomplete-date warning fires once per show."""
+        return parse_al_date_round_up(self.raw["startDate"])
 
     @property
     def tag_names(self) -> list[str]:
