@@ -1,16 +1,17 @@
 import datetime
 from functools import cached_property
 
-from .util import Media, parse_al_date_round_up
+from .util import Log, Media, parse_al_date_round_up
 
 
 class Show:
     """One anime: read-only access to the raw AniList media entry plus the
-    pipeline state computed for it (AL rank, skip reasons, watch order)."""
+    pipeline state computed for it (AL rank, score, skip reasons, watch order)."""
 
     def __init__(self, raw: Media) -> None:
         self.raw = raw
         self.al_rank = 0  # popularity rank, assigned in sort_shows
+        self.score_value = 0  # adjusted rank, assigned in sort_shows
         self.skip = ""  # comma-joined skip reasons, assigned in sort_shows
         self.watchorder: int | None = None  # stays None for skipped shows
 
@@ -18,11 +19,6 @@ class Show:
     def title(self) -> str:
         title: str = self.raw["title"]["english"] or self.raw["title"]["romaji"]
         return title
-
-    @property
-    def popularity(self) -> int:
-        popularity: int = self.raw["popularity"] or 0
-        return popularity
 
     @cached_property
     def latest_start_date(self) -> datetime.date:
@@ -67,3 +63,41 @@ class Show:
     @property
     def is_side_story(self) -> bool:
         return bool(self.anime_relations("PARENT"))
+
+    @property
+    def start_date_str(self) -> str:
+        """The start date exactly as far as AniList knows it: "", "2026" or "2026-07"."""
+        date = self.raw["startDate"]
+        y, mo, d = date["year"], date["month"], date["day"]
+        if y is None:
+            return ""
+        if mo is None:
+            return str(y)
+        if d is None:
+            return f"{y}-{mo:02d}"
+        return f"{y}-{mo:02d}-{d:02d}"
+
+    def notes(self, special_date: datetime.date) -> str:
+        parts: list[str] = []
+        if self.raw["format"] != "TV":
+            parts.append(self.raw["format"])
+        if self.is_sequel:
+            parts.append("sequel")
+        if self.is_side_story:
+            parts.append("side story")
+        if self.is_remake:
+            parts.append("remake")
+        date = self.raw["startDate"]
+        y, mo, d = date["year"], date["month"], date["day"]
+        if y is None:
+            Log.info(f"{self.raw['title']['romaji']}: start date unknown")
+            parts.append("start date unknown")
+        elif mo is None or d is None:
+            note = f"start date incomplete ({self.start_date_str})"
+            Log.info(f"{self.raw['title']['romaji']}: {note}")
+            parts.append(note)
+        elif datetime.date(y, mo, d) == special_date:
+            parts.append("releases on special day")
+        if self.has_unranked_tags:
+            parts.append("unranked tags")
+        return ", ".join(parts)

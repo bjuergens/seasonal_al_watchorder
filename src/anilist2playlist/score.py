@@ -17,7 +17,7 @@ class Score:
     @classmethod
     def of(cls, show: Show, rules: list[Rule], special_date: datetime.date) -> "Score":
         fs = features(show)
-        matches = [(rule.key, rule.value) for rule in rules if rule.needs <= fs]
+        matches = [(rule.key, rule.value) for rule in rules if rule.needs.issubset(fs)]
         reasons = [key for key, value in matches if value is None]
         if show.latest_start_date > special_date:
             reasons.append("releases after special")
@@ -27,7 +27,7 @@ class Score:
 def features(show: Show) -> set[str]:
     """The feature ids of a show that weight rules match against."""
     fs = {f"genre:{g}" for g in show.raw["genres"]}
-    fs |= {f"tag:{t}" for t in show.tag_names}
+    fs.update(f"tag:{t}" for t in show.tag_names)
     fs.add(f"source:{show.raw['source']}")
     if show.is_sequel:
         fs.add("sequel")
@@ -38,9 +38,9 @@ def features(show: Show) -> set[str]:
 
 def warn_unused_weight_keys(shows: list[Show], rules: list[Rule]) -> None:
     """Warn about configured features that appear nowhere in the data (typos)."""
-    universe = {"sequel", "side story"}  # fixed config flags, can't be typos
+    known_features = {"sequel", "side story"}  # fixed config flags, can't be typos
     for show in shows:
-        universe |= features(show)
+        known_features.update(features(show))
     for rule in rules:
-        for feature in sorted(rule.needs - universe):
+        for feature in sorted(rule.needs - known_features):
             Log.warn(f"weight {rule.key!r}: {feature!r} appears nowhere in the data")

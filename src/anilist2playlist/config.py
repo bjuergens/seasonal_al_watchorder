@@ -19,13 +19,13 @@ def split_combo(combo: str) -> set[str]:
     return set(combo.split(" + "))
 
 
-def parse_weight_value(qualname: str, value: Any, path: Path) -> int | None:
+def parse_weight_value(qualname: str, value: Any) -> int | None:
     if value == "skip":
         return None
     # bool is an int subclass, so e.g. `sequel = true` would otherwise score as 1
     if isinstance(value, int) and not isinstance(value, bool):
         return value
-    raise ValueError(f'bad weight value for {qualname} in {path} — must be an integer or "skip"')
+    raise ValueError(f'bad weight value for {qualname} — must be an integer or "skip"')
 
 
 @dataclass(frozen=True)
@@ -37,17 +37,17 @@ class Rule:
     value: int | None  # None means skip
 
     @classmethod
-    def from_flag(cls, toml_key: str, value: Any, path: Path) -> "Rule":
+    def from_flag(cls, toml_key: str, value: Any) -> "Rule":
         """A fixed-flag weight: sequel or side_story."""
         key = toml_key.replace("_", " ")
-        return cls(key, frozenset({key}), parse_weight_value(toml_key, value, path))
+        return cls(key, frozenset({key}), parse_weight_value(toml_key, value))
 
     @classmethod
-    def from_table(cls, kind: str, combo: str, value: Any, path: Path) -> "Rule":
+    def from_table(cls, kind: str, combo: str, value: Any) -> "Rule":
         """A weight from one of the keyed tables; kind is the feature prefix:
         "source", "genre" or "tag". Combos via " + " work for any kind."""
         needs = frozenset(f"{kind}:{part}" for part in split_combo(combo))
-        return cls(combo, needs, parse_weight_value(f"{kind}s.{combo}", value, path))
+        return cls(combo, needs, parse_weight_value(f"{kind}s.{combo}", value))
 
 
 @dataclass(frozen=True)
@@ -73,15 +73,15 @@ def parse_weights(weights: dict[str, Any], path: Path) -> list[Rule]:
             "— use --regenerate-config to restore the defaults"
         )
     rules = [
-        Rule.from_flag("sequel", weights["sequel"], path),
-        Rule.from_flag("side_story", weights["side_story"], path),
+        Rule.from_flag("sequel", weights["sequel"]),
+        Rule.from_flag("side_story", weights["side_story"]),
     ]
     for source, value in weights["sources"].items():
-        rules.append(Rule.from_table("source", source, value, path))
+        rules.append(Rule.from_table("source", source, value))
     for combo, value in weights["genres"].items():
-        rules.append(Rule.from_table("genre", combo, value, path))
+        rules.append(Rule.from_table("genre", combo, value))
     for combo, value in weights["tags"].items():
-        rules.append(Rule.from_table("tag", combo, value, path))
+        rules.append(Rule.from_table("tag", combo, value))
     return rules
 
 
