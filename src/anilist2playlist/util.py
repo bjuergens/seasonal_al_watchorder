@@ -1,3 +1,4 @@
+import calendar
 import datetime
 import sys
 from typing import Any
@@ -6,11 +7,12 @@ from typing import Any
 Media = dict[str, Any]
 
 
-def anilist_date_to_date(fuzzy: dict[str, int | None]) -> datetime.date | None:
-    """AniList FuzzyDate -> real date, or None if any part is missing."""
-    y, mo, d = fuzzy["year"], fuzzy["month"], fuzzy["day"]
-    if y is None or mo is None or d is None:
-        return None
+def parse_al_date_round_up(fuzzy: dict[str, int | None]) -> datetime.date:
+    """AniList FuzzyDate -> date, rounding missing parts up: unknown year becomes
+    2999, unknown month the last month, unknown day the last day of the month."""
+    y = fuzzy["year"] if fuzzy["year"] is not None else 2999
+    mo = fuzzy["month"] if fuzzy["month"] is not None else 12
+    d = fuzzy["day"] if fuzzy["day"] is not None else calendar.monthrange(y, mo)[1]
     return datetime.date(y, mo, d)
 
 

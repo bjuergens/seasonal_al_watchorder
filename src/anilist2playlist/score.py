@@ -2,7 +2,7 @@ import datetime
 from dataclasses import dataclass
 
 from .config import Rule
-from .util import Log, Media, anilist_date_to_date, is_sequel, is_side_story
+from .util import Log, Media, is_sequel, is_side_story, parse_al_date_round_up
 
 
 @dataclass(frozen=True)
@@ -47,8 +47,7 @@ class Scorer:
         fs = features(m)
         matches = [(rule.key, rule.value) for rule in self.rules if rule.needs <= fs]
         reasons = [key for key, value in matches if value is None]
-        start = anilist_date_to_date(m["startDate"])
-        if start is not None and start > self.special_date:
+        if parse_al_date_round_up(m["startDate"]) > self.special_date:
             reasons.append("releases after special")
         value: int = m["AL Rank"] + sum(v for _, v in matches if v is not None)
         return Score(value, reasons)
