@@ -2,7 +2,8 @@ import datetime
 from dataclasses import dataclass
 
 from .config import Rule
-from .util import Log, Media, is_sequel, is_side_story, parse_al_date_round_up
+from .show import Show
+from .util import Log, parse_al_date_round_up
 
 
 @dataclass(frozen=True)
@@ -14,33 +15,32 @@ class Score:
         return self.value < other.value  # ties don't matter, the stable sort decides
 
     @classmethod
-    def of(cls, m: Media, rules: list[Rule], special_date: datetime.date) -> "Score":
-        fs = features(m)
+    def of(cls, show: Show, rules: list[Rule], special_date: datetime.date) -> "Score":
+        fs = features(show)
         matches = [(rule.key, rule.value) for rule in rules if rule.needs <= fs]
         reasons = [key for key, value in matches if value is None]
-        if parse_al_date_round_up(m["startDate"]) > special_date:
+        if parse_al_date_round_up(show.start_date) > special_date:
             reasons.append("releases after special")
-        value: int = m["AL Rank"] + sum(v for _, v in matches if v is not None)
-        return cls(value, reasons)
+        return cls(show.al_rank + sum(v for _, v in matches if v is not None), reasons)
 
 
-def features(m: Media) -> set[str]:
+def features(show: Show) -> set[str]:
     """The feature ids of a show that weight rules match against."""
-    fs = {f"genre:{g}" for g in m["genres"]}
-    fs |= {f"tag:{t['name']}" for t in m["tags"]}
-    fs.add(f"source:{m['source']}")
-    if is_sequel(m):
+    fs = {f"genre:{g}" for g in show.genres}
+    fs |= {f"tag:{t}" for t in show.tag_names}
+    fs.add(f"source:{show.source}")
+    if show.is_sequel:
         fs.add("sequel")
-    if is_side_story(m):
+    if show.is_side_story:
         fs.add("side story")
     return fs
 
 
-def warn_unused_weight_keys(media: list[Media], rules: list[Rule]) -> None:
+def warn_unused_weight_keys(shows: list[Show], rules: list[Rule]) -> None:
     """Warn about configured features that appear nowhere in the data (typos)."""
     universe = {"sequel", "side story"}  # fixed config flags, can't be typos
-    for m in media:
-        universe |= features(m)
+    for show in shows:
+        universe |= features(show)
     for rule in rules:
         for feature in sorted(rule.needs - universe):
             Log.warn(f"weight {rule.key!r}: {feature!r} appears nowhere in the data")
