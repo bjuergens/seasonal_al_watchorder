@@ -1,103 +1,136 @@
+import calendar
 import datetime
-from functools import cached_property
 
-from .util import Log, Media, parse_al_date_round_up
+from .config import Rule
+from .util import Log, Media
 
 
 class Show:
-    """One anime: read-only access to the raw AniList media entry plus the
-    pipeline state computed for it (AL rank, score, skip reasons, watch order)."""
+    """One anime, fully parsed from the raw AniList media entry by Show.of().
+    Everything is fixed at construction; the watch order is global and passed
+    into tsv_row() instead."""
 
-    def __init__(self, raw: Media) -> None:
-        self.raw = raw
-        self.al_rank = 0  # popularity rank, assigned in sort_shows
-        self.score_value = 0  # adjusted rank, assigned in sort_shows
-        self.skip = ""  # comma-joined skip reasons, assigned in sort_shows
-        self.watchorder: int | None = None  # stays None for skipped shows
+    COLUMNS = [
+        "title",
+        "romaji",
+        "source",
+        "siteUrl",
+        "status",
+        "startDate",
+        "genres",
+        "duration",
+        "studio",
+        "AL Rank",
+        "watchorder",
+        "skip",
+        "notes",
+        "SPOILER tags SPOILER",
+        "score",
+    ]
 
-    @property
-    def title(self) -> str:
-        title: str = self.raw["title"]["english"] or self.raw["title"]["romaji"]
-        return title
+    title: str
+    romaji: str
+    source: str
+    site_url: str
+    status: str
+    latest_start_date: datetime.date  # missing parts rounded up
+    genres: list[str]
+    duration: int | None
+    studios: list[str]
+    tag_names: list[str]
+    is_sequel: bool
+    is_side_story: bool
+    al_rank: int  # popularity rank (the fetch order)
+    notes: list[str]
+    skip_reasons: list[str]
+    score_value: int  # adjusted rank
 
-    @cached_property
-    def latest_start_date(self) -> datetime.date:
-        """Start date with missing parts rounded up; cached so the parser's
-        incomplete-date warning fires once per show."""
-        return parse_al_date_round_up(self.raw["startDate"])
+    @classmethod
+    def of(cls, raw: Media, al_rank: int, rules: list[Rule], special_date: datetime.date) -> "Show":
+        from .score import Score
 
-    @property
-    def tag_names(self) -> list[str]:
-        return [t["name"] for t in self.raw["tags"]]
+        show = cls()
+        show.al_rank = al_rank
+        show.title = raw["title"]["english"] or raw["title"]["romaji"]
+        show.romaji = raw["title"]["romaji"]
+        show.source = raw["source"]
+        show.site_url = raw["siteUrl"]
+        show.status = raw["status"]
+        # start date with missing parts rounded up: unknown year becomes 2999,
+        # unknown month the last month, unknown day the last day of the month
+        y, mo, d = (raw["startDate"][k] for k in ("year", "month", "day"))
+        if y is not None and mo is not None and d is not None:
+            show.latest_start_date = datetime.date(y, mo, d)
+        else:
+            ry, rmo = y if y is not None else 2999, mo if mo is not None else 12
+            rd = d if d is not None else calendar.monthrange(ry, rmo)[1]
+            show.latest_start_date = datetime.date(ry, rmo, rd)
+            Log.warn(
+                f"incomplete AniList date {raw['startDate']} rounded up to {show.latest_start_date}"
+            )
+        show.genres = list(raw["genres"])
+        show.duration = raw["duration"]
+        show.studios = [s["name"] for s in raw["studios"]["nodes"]]
+        show.tag_names = [t["name"] for t in raw["tags"]]
 
-    @property
-    def has_unranked_tags(self) -> bool:
-        return any(t["rank"] is None for t in self.raw["tags"])
+        def anime_relations(relation_type: str) -> list[Media]:
+            return [
+                e["node"]
+                for e in raw["relations"]["edges"]
+                if e["relationType"] == relation_type and e["node"]["type"] == "ANIME"
+            ]
 
-    @property
-    def studios(self) -> list[str]:
-        return [s["name"] for s in self.raw["studios"]["nodes"]]
-
-    def anime_relations(self, relation_type: str) -> list[Media]:
-        return [
-            e["node"]
-            for e in self.raw["relations"]["edges"]
-            if e["relationType"] == relation_type and e["node"]["type"] == "ANIME"
-        ]
-
-    @property
-    def is_sequel(self) -> bool:
-        return bool(self.anime_relations("PREQUEL"))
-
-    @property
-    def is_remake(self) -> bool:
-        """Remake: an alternative version of an anime that started in an earlier year."""
-        year = self.raw["startDate"]["year"]
-        if year is None:
-            return False
-        return any(
-            node["startDate"]["year"] is not None and node["startDate"]["year"] < year
-            for node in self.anime_relations("ALTERNATIVE")
+        show.is_sequel = bool(anime_relations("PREQUEL"))
+        show.is_side_story = bool(anime_relations("PARENT"))
+        # remake: an alternative version of an anime that started in an earlier year
+        is_remake = y is not None and any(
+            node["startDate"]["year"] is not None and node["startDate"]["year"] < y
+            for node in anime_relations("ALTERNATIVE")
         )
 
-    @property
-    def is_side_story(self) -> bool:
-        return bool(self.anime_relations("PARENT"))
-
-    @property
-    def start_date_str(self) -> str:
-        """The start date exactly as far as AniList knows it: "", "2026" or "2026-07"."""
-        date = self.raw["startDate"]
-        y, mo, d = date["year"], date["month"], date["day"]
+        notes: list[str] = []
+        if raw["format"] != "TV":
+            notes.append(raw["format"])
+        if show.is_sequel:
+            notes.append("sequel")
+        if show.is_side_story:
+            notes.append("side story")
+        if is_remake:
+            notes.append("remake")
         if y is None:
-            return ""
-        if mo is None:
-            return str(y)
-        if d is None:
-            return f"{y}-{mo:02d}"
-        return f"{y}-{mo:02d}-{d:02d}"
-
-    def notes(self, special_date: datetime.date) -> str:
-        parts: list[str] = []
-        if self.raw["format"] != "TV":
-            parts.append(self.raw["format"])
-        if self.is_sequel:
-            parts.append("sequel")
-        if self.is_side_story:
-            parts.append("side story")
-        if self.is_remake:
-            parts.append("remake")
-        date = self.raw["startDate"]
-        y, mo, d = date["year"], date["month"], date["day"]
-        if y is None:
-            Log.info(f"{self.raw['title']['romaji']}: start date unknown")
-            parts.append("start date unknown")
+            Log.info(f"{show.romaji}: start date unknown")
+            notes.append("start date unknown")
         elif mo is None or d is None:
-            note = f"start date incomplete ({self.start_date_str})"
-            Log.info(f"{self.raw['title']['romaji']}: {note}")
-            parts.append(note)
+            # the start date exactly as far as AniList knows it: "2026" or "2026-07"
+            note = f"start date incomplete ({y if mo is None else f'{y}-{mo:02d}'})"
+            Log.info(f"{show.romaji}: {note}")
+            notes.append(note)
         elif datetime.date(y, mo, d) == special_date:
-            parts.append("releases on special day")
-        if self.has_unranked_tags:
-            parts.append("unranked tags")
-        return ", ".join(parts)
+            notes.append("releases on special day")
+        if any(t["rank"] is None for t in raw["tags"]):
+            notes.append("unranked tags")
+        show.notes = notes
+
+        score = Score.of(show, rules, special_date)
+        show.skip_reasons = score.skip_reasons
+        show.score_value = score.value
+        return show
+
+    def tsv_row(self, watchorder: int | None) -> list[str | int | None]:
+        return [
+            self.title,
+            self.romaji,
+            self.source,
+            self.site_url,
+            self.status,
+            self.latest_start_date.isoformat(),
+            ", ".join(self.genres),
+            self.duration,
+            ", ".join(self.studios),
+            self.al_rank,
+            "skip" if watchorder is None else watchorder,
+            ", ".join(self.skip_reasons),
+            ", ".join(self.notes),
+            ", ".join(self.tag_names),
+            self.score_value,
+        ]
