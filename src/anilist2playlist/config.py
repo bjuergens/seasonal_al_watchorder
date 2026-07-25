@@ -15,17 +15,64 @@ WEIGHT_KEYS = {"sequel", "side_story", "sources", "genres", "tags"}
 
 
 @dataclass(frozen=True)
+class Rule:
+    """One [weights] entry, normalized: matches a show when all needed features are present."""
+
+    key: str  # display / skip-reason name from the config
+    needs: frozenset[str]  # feature ids, e.g. {"genre:Isekai", "genre:Fantasy"}
+    value: int | None  # None means skip
+
+
+@dataclass(frozen=True)
 class Config:
     raw_file: Path
     output: Path
     pin_top: int
     tag_cutoff: int
     cache_max_age_hours: int
-    weights: dict[str, Any]
+    weights: list[Rule]
 
 
 def season_of(date: datetime.date) -> tuple[str, int]:
     return SEASONS[(date.month - 1) // 3], date.year
+
+
+def split_combo(combo: str) -> set[str]:
+    # separator is " + " with spaces — a bare "+" can be part of a tag name ("LGBTQ+ Themes")
+    return set(combo.split(" + "))
+
+
+def parse_weights(weights: dict[str, Any], path: Path) -> list[Rule]:
+    missing = WEIGHT_KEYS - set(weights)
+    unknown = set(weights) - WEIGHT_KEYS
+    if missing or unknown:
+        raise ValueError(
+            f"bad [weights] in {path}: missing {sorted(missing)}, unknown {sorted(unknown)} "
+            "— use --regenerate-config to restore the defaults"
+        )
+    # (qualified name for errors, display key, needed features, raw value)
+    entries: list[tuple[str, str, frozenset[str], Any]] = [
+        ("sequel", "sequel", frozenset({"sequel"}), weights["sequel"]),
+        ("side_story", "side story", frozenset({"side story"}), weights["side_story"]),
+    ]
+    for source, value in weights["sources"].items():
+        entries.append((f"sources.{source}", source, frozenset({f"source:{source}"}), value))
+    for combo, value in weights["genres"].items():
+        needs = frozenset(f"genre:{part}" for part in split_combo(combo))
+        entries.append((f"genres.{combo}", combo, needs, value))
+    for combo, value in weights["tags"].items():
+        needs = frozenset(f"tag:{part}" for part in split_combo(combo))
+        entries.append((f"tags.{combo}", combo, needs, value))
+    bad = [
+        qualname
+        for qualname, _, _, value in entries
+        if value != "skip" and not (isinstance(value, int) and not isinstance(value, bool))
+    ]
+    if bad:
+        raise ValueError(f'bad weight values for {bad} in {path} — must be an integer or "skip"')
+    return [
+        Rule(key, needs, None if value == "skip" else value) for _, key, needs, value in entries
+    ]
 
 
 def write_default_config(path: Path) -> None:
@@ -50,26 +97,6 @@ def load_config(path: Path | None) -> Config:
         raise ValueError(
             f"missing {missing_props} in {path} — use --regenerate-config to restore the defaults"
         )
-    weights = data["weights"]
-    missing = WEIGHT_KEYS - set(weights)
-    unknown = set(weights) - WEIGHT_KEYS
-    if missing or unknown:
-        raise ValueError(
-            f"bad [weights] in {path}: missing {sorted(missing)}, unknown {sorted(unknown)} "
-            "— use --regenerate-config to restore the defaults"
-        )
-    values = [(key, weights[key]) for key in ("sequel", "side_story")] + [
-        (f"{table}.{key}", value)
-        for table in ("sources", "genres", "tags")
-        for key, value in weights[table].items()
-    ]
-    bad = [
-        key
-        for key, value in values
-        if value != "skip" and not (isinstance(value, int) and not isinstance(value, bool))
-    ]
-    if bad:
-        raise ValueError(f'bad weight values for {bad} in {path} — must be an integer or "skip"')
 
     return Config(
         raw_file=Path(data["raw_file"]),
@@ -77,5 +104,5 @@ def load_config(path: Path | None) -> Config:
         pin_top=int(data["pin_top"]),
         tag_cutoff=int(data["tag_cutoff"]),
         cache_max_age_hours=int(data["cache_max_age_hours"]),
-        weights=weights,
+        weights=parse_weights(data["weights"], path),
     )

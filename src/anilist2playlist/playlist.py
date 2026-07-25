@@ -1,9 +1,9 @@
 import csv
 import datetime
-from typing import Any
 
 from .config import Config
-from .util import Log, Media
+from .score import Scorer, warn_unused_weight_keys
+from .util import Log, Media, is_remake, is_sequel, is_side_story
 
 COLUMNS = [
     "title",
@@ -21,32 +21,6 @@ COLUMNS = [
     "notes",
     "SPOILER tags SPOILER",
 ]
-
-
-def anime_relations(m: Media, relation_type: str) -> list[Media]:
-    return [
-        e["node"]
-        for e in m["relations"]["edges"]
-        if e["relationType"] == relation_type and e["node"]["type"] == "ANIME"
-    ]
-
-
-def is_sequel(m: Media) -> bool:
-    return bool(anime_relations(m, "PREQUEL"))
-
-
-def is_remake(m: Media) -> bool:
-    """Remake: an alternative version of an anime that started in an earlier year."""
-    if m["startDate"]["year"] is None:
-        return False
-    return any(
-        node["startDate"]["year"] is not None and node["startDate"]["year"] < m["startDate"]["year"]
-        for node in anime_relations(m, "ALTERNATIVE")
-    )
-
-
-def is_side_story(m: Media) -> bool:
-    return bool(anime_relations(m, "PARENT"))
 
 
 def start_date_str(m: Media) -> str:
@@ -84,56 +58,6 @@ def notes(m: Media, special_date: datetime.date) -> str:
     return ", ".join(parts)
 
 
-def split_combo(combo: str) -> set[str]:
-    # separator is " + " with spaces — a bare "+" can be part of a tag name ("LGBTQ+ Themes")
-    return set(combo.split(" + "))
-
-
-def matching_weights(m: Media, weights: dict[str, Any]) -> list[tuple[str, int | str]]:
-    """All weight entries that apply to this show, as (key, value) pairs."""
-    matches: list[tuple[str, int | str]] = []
-    if m["source"] in weights["sources"]:
-        matches.append((m["source"], weights["sources"][m["source"]]))
-    for table, present in (("genres", set(m["genres"])), ("tags", {t["name"] for t in m["tags"]})):
-        matches.extend(
-            (combo, w) for combo, w in weights[table].items() if split_combo(combo) <= present
-        )
-    if is_sequel(m):
-        matches.append(("sequel", weights["sequel"]))
-    if is_side_story(m):
-        matches.append(("side story", weights["side_story"]))
-    return matches
-
-
-def score(m: Media, weights: dict[str, Any]) -> int:
-    s: int = m["AL Rank"]
-    s += sum(value for _, value in matching_weights(m, weights) if isinstance(value, int))
-    return s
-
-
-def skip_reasons(m: Media, weights: dict[str, Any], special_date: datetime.date) -> str:
-    reasons = [key for key, value in matching_weights(m, weights) if value == "skip"]
-    y, mo, d = m["startDate"]["year"], m["startDate"]["month"], m["startDate"]["day"]
-    if None not in (y, mo, d) and datetime.date(y, mo, d) > special_date:
-        reasons.append("releases after special")
-    return ", ".join(reasons)
-
-
-def warn_unused_weight_keys(media: list[Media], weights: dict[str, Any]) -> None:
-    """Warn about configured sources/genres/tags that appear nowhere in the data (typos)."""
-    sources = {m["source"] for m in media}
-    genres = {g for m in media for g in m["genres"]}
-    tags = {t["name"] for m in media for t in m["tags"]}
-    for source in weights["sources"]:
-        if source not in sources:
-            Log.warn(f"weight source {source!r} appears nowhere in the data")
-    for table, present in (("genres", genres), ("tags", tags)):
-        for combo in weights[table]:
-            for part in split_combo(combo):
-                if part not in present:
-                    Log.warn(f"weight {table} key {combo!r}: {part!r} appears nowhere in the data")
-
-
 def sort_media(media: list[Media], cfg: Config, special_date: datetime.date) -> list[Media]:
     """Watch order: the top pin_top non-skipped shows keep their AL Rank order, the
     rest are sorted by adjusted rank (ascending = watch first). Skipped shows sort
@@ -142,11 +66,14 @@ def sort_media(media: list[Media], cfg: Config, special_date: datetime.date) -> 
     by_popularity = sorted(media, key=lambda m: m["popularity"] or 0, reverse=True)
     for rank, m in enumerate(by_popularity, 1):
         m["AL Rank"] = rank
-        m["skip"] = skip_reasons(m, cfg.weights, special_date)
+    scorer = Scorer(cfg.weights, special_date)
+    scored = [(m, scorer.score(m)) for m in media]
+    for m, s in scored:
+        m["skip"] = ", ".join(s.skip_reasons)
     kept = sorted((m for m in media if not m["skip"]), key=lambda m: m["AL Rank"])
     pinned = kept[: cfg.pin_top]
-    rest = [m for m in media if m not in pinned]
-    ordered = pinned + sorted(rest, key=lambda m: (score(m, cfg.weights), m["AL Rank"]))
+    rest = [(m, s) for m, s in scored if m not in pinned]
+    ordered = pinned + [m for m, _ in sorted(rest, key=lambda pair: pair[1])]
     order = 1
     for m in ordered:
         if m["skip"]:
