@@ -42,6 +42,15 @@ def split_combo(combo: str) -> set[str]:
     return set(combo.split(" + "))
 
 
+def parse_weight_value(qualname: str, value: Any, path: Path) -> int | None:
+    if value == "skip":
+        return None
+    # bool is an int subclass, so e.g. `sequel = true` would otherwise score as 1
+    if isinstance(value, int) and not isinstance(value, bool):
+        return value
+    raise ValueError(f'bad weight value for {qualname} in {path} — must be an integer or "skip"')
+
+
 def parse_weights(weights: dict[str, Any], path: Path) -> list[Rule]:
     missing = WEIGHT_KEYS - set(weights)
     unknown = set(weights) - WEIGHT_KEYS
@@ -50,29 +59,28 @@ def parse_weights(weights: dict[str, Any], path: Path) -> list[Rule]:
             f"bad [weights] in {path}: missing {sorted(missing)}, unknown {sorted(unknown)} "
             "— use --regenerate-config to restore the defaults"
         )
-    # (qualified name for errors, display key, needed features, raw value)
-    entries: list[tuple[str, str, frozenset[str], Any]] = [
-        ("sequel", "sequel", frozenset({"sequel"}), weights["sequel"]),
-        ("side_story", "side story", frozenset({"side story"}), weights["side_story"]),
+    rules = [
+        Rule(
+            "sequel",
+            frozenset({"sequel"}),
+            parse_weight_value("sequel", weights["sequel"], path),
+        ),
+        Rule(
+            "side story",
+            frozenset({"side story"}),
+            parse_weight_value("side_story", weights["side_story"], path),
+        ),
     ]
     for source, value in weights["sources"].items():
-        entries.append((f"sources.{source}", source, frozenset({f"source:{source}"}), value))
+        needs = frozenset({f"source:{source}"})
+        rules.append(Rule(source, needs, parse_weight_value(f"sources.{source}", value, path)))
     for combo, value in weights["genres"].items():
         needs = frozenset(f"genre:{part}" for part in split_combo(combo))
-        entries.append((f"genres.{combo}", combo, needs, value))
+        rules.append(Rule(combo, needs, parse_weight_value(f"genres.{combo}", value, path)))
     for combo, value in weights["tags"].items():
         needs = frozenset(f"tag:{part}" for part in split_combo(combo))
-        entries.append((f"tags.{combo}", combo, needs, value))
-    bad = [
-        qualname
-        for qualname, _, _, value in entries
-        if value != "skip" and not (isinstance(value, int) and not isinstance(value, bool))
-    ]
-    if bad:
-        raise ValueError(f'bad weight values for {bad} in {path} — must be an integer or "skip"')
-    return [
-        Rule(key, needs, None if value == "skip" else value) for _, key, needs, value in entries
-    ]
+        rules.append(Rule(combo, needs, parse_weight_value(f"tags.{combo}", value, path)))
+    return rules
 
 
 def write_default_config(path: Path) -> None:

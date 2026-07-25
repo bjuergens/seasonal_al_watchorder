@@ -2,7 +2,7 @@ import csv
 import datetime
 
 from .config import Config
-from .score import Scorer, warn_unused_weight_keys
+from .score import Score, warn_unused_weight_keys
 from .util import Log, Media, is_remake, is_sequel, is_side_story
 
 COLUMNS = [
@@ -66,8 +66,7 @@ def sort_media(media: list[Media], cfg: Config, special_date: datetime.date) -> 
     by_popularity = sorted(media, key=lambda m: m["popularity"] or 0, reverse=True)
     for rank, m in enumerate(by_popularity, 1):
         m["AL Rank"] = rank
-    scorer = Scorer(cfg.rules, special_date)
-    scored = [(m, scorer.score(m)) for m in media]
+    scored = [(m, Score.of(m, cfg.rules, special_date)) for m in media]
     for m, s in scored:
         m["skip"] = ", ".join(s.skip_reasons)
     kept = sorted((m for m in media if not m["skip"]), key=lambda m: m["AL Rank"])

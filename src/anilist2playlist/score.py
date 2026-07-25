@@ -13,6 +13,16 @@ class Score:
     def __lt__(self, other: "Score") -> bool:
         return self.value < other.value  # ties don't matter, the stable sort decides
 
+    @classmethod
+    def of(cls, m: Media, rules: list[Rule], special_date: datetime.date) -> "Score":
+        fs = features(m)
+        matches = [(rule.key, rule.value) for rule in rules if rule.needs <= fs]
+        reasons = [key for key, value in matches if value is None]
+        if parse_al_date_round_up(m["startDate"]) > special_date:
+            reasons.append("releases after special")
+        value: int = m["AL Rank"] + sum(v for _, v in matches if v is not None)
+        return cls(value, reasons)
+
 
 def features(m: Media) -> set[str]:
     """The feature ids of a show that weight rules match against."""
@@ -34,20 +44,3 @@ def warn_unused_weight_keys(media: list[Media], rules: list[Rule]) -> None:
     for rule in rules:
         for feature in sorted(rule.needs - universe):
             Log.warn(f"weight {rule.key!r}: {feature!r} appears nowhere in the data")
-
-
-class Scorer:
-    """Applies the config's weight rules and skip logic, one show at a time."""
-
-    def __init__(self, rules: list[Rule], special_date: datetime.date) -> None:
-        self.rules = rules
-        self.special_date = special_date
-
-    def score(self, m: Media) -> Score:
-        fs = features(m)
-        matches = [(rule.key, rule.value) for rule in self.rules if rule.needs <= fs]
-        reasons = [key for key, value in matches if value is None]
-        if parse_al_date_round_up(m["startDate"]) > self.special_date:
-            reasons.append("releases after special")
-        value: int = m["AL Rank"] + sum(v for _, v in matches if v is not None)
-        return Score(value, reasons)
