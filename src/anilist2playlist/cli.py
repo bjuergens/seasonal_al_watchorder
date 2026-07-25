@@ -18,7 +18,8 @@ def cmd_fetch(cfg: Config, special_date: datetime.date) -> None:
 
 
 def cmd_build(cfg: Config, special_date: datetime.date) -> None:
-    media = read_raw(cfg.raw_file, cfg.cache_max_age_hours)
+    season, year = season_of(special_date)
+    media = read_raw(cfg.raw_file, cfg.cache_max_age_hours, season, year)
     Log.info(f"building playlist from {len(media)} entries in {cfg.raw_file}")
     shows = [Show.of(m, rank, cfg.rules, special_date) for rank, m in enumerate(media, 1)]
     write_tsv(sort_shows(shows, cfg), cfg)

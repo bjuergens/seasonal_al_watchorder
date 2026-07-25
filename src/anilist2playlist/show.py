@@ -3,7 +3,7 @@ import datetime
 from dataclasses import dataclass
 from typing import ClassVar
 
-from .config import Rule
+from .config import SEQUEL, SIDE_STORY, Rule, feature
 from .score import Score
 from .util import Log, Media
 
@@ -76,21 +76,23 @@ class Show:
             for node in anime_relations("ALTERNATIVE")
         )
 
-        features = {f"genre:{g}" for g in genres}
-        features.update(f"tag:{t}" for t in tag_names)
-        features.add(f"source:{raw['source']}")
+        features = {feature("genre", g) for g in genres}
+        features.update(feature("tag", t) for t in tag_names)
+        features.add(feature("source", raw["source"]))
 
         notes: list[str] = []
         if raw["format"] != "TV":
             notes.append(raw["format"])
         if raw["status"] != "RELEASING":
             notes.append(raw["status"])
+        if raw["isAdult"]:
+            notes.append("adult")
         if is_sequel:
-            notes.append("sequel")
-            features.add("sequel")
+            notes.append(SEQUEL)
+            features.add(SEQUEL)
         if is_side_story:
-            notes.append("side story")
-            features.add("side story")
+            notes.append(SIDE_STORY)
+            features.add(SIDE_STORY)
         if is_remake:
             notes.append("remake")
         if y is None:

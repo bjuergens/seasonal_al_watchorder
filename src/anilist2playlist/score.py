@@ -1,7 +1,7 @@
 import datetime
 from dataclasses import dataclass
 
-from .config import Rule
+from .config import SEQUEL, SIDE_STORY, Rule
 from .util import Log
 
 
@@ -28,7 +28,7 @@ class Score:
 
 def warn_unused_weight_keys(feature_sets: list[set[str]], rules: list[Rule]) -> None:
     """Warn about configured features that appear nowhere in the data (typos)."""
-    known_features = {"sequel", "side story"}  # fixed config flags, can't be typos
+    known_features = {SEQUEL, SIDE_STORY}  # fixed config flags, can't be typos
     for features in feature_sets:
         known_features.update(features)
     for rule in rules:

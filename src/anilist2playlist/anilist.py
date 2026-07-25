@@ -12,10 +12,10 @@ query ($season: MediaSeason, $year: Int, $page: Int, $perPage: Int) {
     pageInfo { hasNextPage }
     media(
       season: $season, seasonYear: $year,
-      format_in: [TV, ONA, OVA], isAdult: false, type: ANIME,
+      format_in: [TV, ONA, OVA], type: ANIME,
       sort: POPULARITY_DESC
     ) {
-      id idMal
+      id idMal isAdult
       title { english romaji }
       startDate { year month day }
       status season format genres episodes duration

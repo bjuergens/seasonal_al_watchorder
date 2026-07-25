@@ -13,6 +13,15 @@ SEASONS = ("WINTER", "SPRING", "SUMMER", "FALL")
 
 WEIGHT_KEYS = {"sequel", "side_story", "sources", "genres", "tags"}
 
+# feature ids for the fixed flags; Show.of mints the same ids from the AniList data
+SEQUEL = "sequel"
+SIDE_STORY = "side story"
+
+
+def feature(kind: str, name: str) -> str:
+    """A keyed feature id, e.g. feature("genre", "Isekai") -> "genre:Isekai"."""
+    return f"{kind}:{name}"
+
 
 def split_combo(combo: str) -> set[str]:
     # separator is " + " with spaces — a bare "+" can be part of a tag name ("LGBTQ+ Themes")
@@ -37,16 +46,10 @@ class Rule:
     value: int | None  # None means skip
 
     @classmethod
-    def from_flag(cls, toml_key: str, value: Any) -> "Rule":
-        """A fixed-flag weight: sequel or side_story."""
-        key = toml_key.replace("_", " ")
-        return cls(key, frozenset({key}), parse_weight_value(toml_key, value))
-
-    @classmethod
     def from_table(cls, kind: str, combo: str, value: Any) -> "Rule":
         """A weight from one of the keyed tables; kind is the feature prefix:
         "source", "genre" or "tag". Combos via " + " work for any kind."""
-        needs = frozenset(f"{kind}:{part}" for part in split_combo(combo))
+        needs = frozenset(feature(kind, part) for part in split_combo(combo))
         return cls(combo, needs, parse_weight_value(f"{kind}s.{combo}", value))
 
 
@@ -72,16 +75,18 @@ def parse_weights(weights: dict[str, Any], path: Path) -> list[Rule]:
             f"bad [weights] in {path}: missing {sorted(missing)}, unknown {sorted(unknown)} "
             "— use --regenerate-config to restore the defaults"
         )
+    # the fixed flags are their own single feature id; the keyed tables mint prefixed ones
     rules = [
-        Rule.from_flag("sequel", weights["sequel"]),
-        Rule.from_flag("side_story", weights["side_story"]),
+        Rule(SEQUEL, frozenset({SEQUEL}), parse_weight_value("sequel", weights["sequel"])),
+        Rule(
+            SIDE_STORY,
+            frozenset({SIDE_STORY}),
+            parse_weight_value("side_story", weights["side_story"]),
+        ),
     ]
-    for source, value in weights["sources"].items():
-        rules.append(Rule.from_table("source", source, value))
-    for combo, value in weights["genres"].items():
-        rules.append(Rule.from_table("genre", combo, value))
-    for combo, value in weights["tags"].items():
-        rules.append(Rule.from_table("tag", combo, value))
+    for toml_key, kind in (("sources", "source"), ("genres", "genre"), ("tags", "tag")):
+        for combo, value in weights[toml_key].items():
+            rules.append(Rule.from_table(kind, combo, value))
     return rules
 
 
